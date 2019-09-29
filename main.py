@@ -20,7 +20,7 @@ def main():
         max_observation_values = env.observation_space.high
         normalize_state = False
 
-        num_episodes = 1000
+        num_episodes = 2000
         num_train_steps = 100
         batch_size = 3
         discount = 0.99

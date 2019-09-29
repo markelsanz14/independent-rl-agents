@@ -1,0 +1,137 @@
+import tensorflow as tf
+import random
+
+layers = tf.keras.layers
+
+class ReplayBuffer(object):
+    def __init__(self, size):
+        self.buffer = []
+        self._size = size
+
+    def __len__(self):
+        return len(self.buffer)
+
+    def add_to_buffer(self, state, action, reward, next_state, done):
+        """Adds data to experience replay buffer."""
+        if len(self.buffer) == self._size:
+            self.buffer = self.buffer[1:]
+        self.buffer.append((state, action, reward, next_state, done))
+
+    def sample(self, num_samples):
+        batch = random.sample(self.buffer, num_samples)
+        states, actions, rewards, next_states, dones = list(zip(*batch))
+        return states, actions, rewards, next_states, dones
+
+
+class CriticNetwork(tf.keras.Model):
+    def __init__(self, num_state_feats, num_action_feats):
+        super(CriticNetwork, self).__init__()
+        self.dense1 = layers.Dense(
+            64, input_shape=(num_state_feats + num_action_feats,), activation="relu"
+        )
+        self.dense2 = layers.Dense(64, activation="relu")
+        self.out = layers.Dense(1)
+
+    def call(self, inputs):
+        states, actions = inputs
+        x = tf.concat([states, actions], axis=-1)
+        x = self.dense1(x)
+        x = self.dense2(x)
+        q = self.out(x)
+        return q
+
+
+class ActorNetwork(tf.keras.Model):
+    def __init__(self, num_state_feats, num_action_feats, max_action_values):
+        super(ActorNetwork, self).__init__()
+        self.max_action_values = max_action_values
+
+        self.dense1 = layers.Dense(64, input_shape=(num_state_feats,), activation="relu")
+        self.dense2 = layers.Dense(64, activation="relu")
+        self.out = layers.Dense(num_action_feats, activation="tanh")
+
+    def call(self, state):
+        x = self.dense1(state)
+        x = self.dense2(x)
+        action = self.out(x) * self.max_action_values
+        return action
+
+
+class DDPG(object):
+    def __init__(
+        self,
+        num_state_feats,
+        num_action_feats,
+        min_action_values,
+        max_action_values,
+        actor_lr=1e-3,
+        critic_lr=1e-3,
+        buffer_size=500000,
+        discount=0.99,
+    ):
+        self.num_state_feats = num_state_feats
+        self.num_action_feats = num_action_feats
+        self.min_action_values = min_action_values
+        self.max_action_values = max_action_values
+
+        self.discount = discount
+
+        self.buffer = ReplayBuffer(buffer_size)
+
+        self.actor = ActorNetwork(num_state_feats, num_action_feats, max_action_values)
+        self.actor_target = ActorNetwork(num_state_feats, num_action_feats, max_action_values)
+        self.critic = CriticNetwork(num_state_feats, num_action_feats)
+        self.critic_target = CriticNetwork(num_state_feats, num_action_feats)
+
+        self.actor_lr = actor_lr
+        self.critic_lr = critic_lr
+        self.actor_optimizer = tf.keras.optimizers.Adam(learning_rate=self.actor_lr)
+        self.critic_optimizer = tf.keras.optimizers.Adam(learning_rate=self.critic_lr)
+        self.loss = tf.keras.losses.Huber()
+
+    def take_action_with_noise(self, state, noise_scale=0.1):
+        """Takes action using self.actor network and adding noise for exploration."""
+        act = self.actor(state) + tf.random.normal(
+            shape=(self.num_action_feats,), stddev=noise_scale
+        )
+        return tf.clip_by_value(act, self.min_action_values, self.max_action_values)
+
+    def update_target_network(self, source_weights, target_weights, tau=0.001):
+        """Updates target networks using Polyak averaging."""
+        for source_weight, target_weight in zip(source_weights, target_weights):
+            target_weight.assign(tau * source_weight + (1.0 - tau) * target_weight)
+
+    @tf.function
+    def train_step(
+        self, batch_states, batch_actions, batch_rewards, batch_next_states, batch_dones
+    ):
+        # Calculate critic target.
+        next_actions = self.actor_target(batch_next_states)
+        next_qs = self.critic_target((batch_next_states, next_actions))
+        next_qs = tf.reshape(next_qs, (-1,))
+        target = batch_rewards + (1.0 - batch_dones) * self.discount * next_qs
+        with tf.GradientTape() as tape:
+            # Calculate critic loss.
+            qs = self.critic((batch_states, batch_actions))
+            qs = tf.reshape(qs, (-1,))
+            critic_loss = self.loss(target, qs)
+
+        # Calculate and apply critic gradients.
+        critic_gradients = tape.gradient(critic_loss, self.critic.trainable_variables)
+        self.critic_optimizer.apply_gradients(zip(critic_gradients, self.critic.trainable_variables))
+
+        with tf.GradientTape() as tape:
+            # Calculate actor loss.
+            policy_actions = self.actor(batch_states)
+            policy_qs = self.critic((batch_states, policy_actions))
+            actor_loss = -tf.reduce_mean(policy_qs)
+
+        # Calculate and apply actor gradients.
+        actor_gradients = tape.gradient(actor_loss, self.actor.trainable_variables)
+        self.actor_optimizer.apply_gradients(
+            zip(actor_gradients, self.actor.trainable_variables)
+        )
+
+        self.update_target_network(self.critic.weights, self.critic_target.weights, tau=0.001)
+        self.update_target_network(self.actor.weights, self.actor_target.weights, tau=0.001)
+        return critic_loss, actor_loss
