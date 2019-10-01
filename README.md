@@ -8,6 +8,9 @@ performance, but they will not be integrated as part of the algorithms. The main
 is to have algorithms that are independent from the application and easy to adapt to 
 new environemnts.
 
+All the algorithms have been implemented using Tensorflow 2.0, but use the tf.function 
+decorator for compiling them to graph mode for improved performance.
+
 ### Current status:
 | Algorithm                | Status                  | Type of Algorithm                    | Action Space | Paper Link |
 |--------------------------|-------------------------|--------------------------------------|--------------|------------|
