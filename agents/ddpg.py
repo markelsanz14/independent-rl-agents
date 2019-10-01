@@ -22,14 +22,63 @@ class ReplayBuffer(object):
         states, actions, rewards, next_states, dones = list(zip(*batch))
         return states, actions, rewards, next_states, dones
 
+class CriticNetworkConv(tf.keras.Model):
+    def __init__(self):
+        super(CriticNetworkConv, self).__init__()
+        self.conv1 = tf.keras.layers.Conv2D(32, 3, strides=(2, 2), activation='relu') # out 48,48,32
+        self.conv2 = tf.keras.layers.Conv2D(32, 4, strides=(2, 2), activation='relu') # out 24,24,32
+        self.conv3 = tf.keras.layers.Conv2D(64, 4, strides=(2, 2), activation='relu') # out 12,12,64
+        self.flatten = tf.keras.layers.Flatten()
+        self.dense1 = tf.keras.layers.Dense(128, activation='relu')
+        self.out = tf.keras.layers.Dense(1)
+
+    def call(self, inputs):
+        """Calls the neural network with some inputs.
+        Args:
+            inputs: tuple of (states, actions).
+        Returns:
+            q: the q-value of Q(states, actions).
+        """
+        states, actions = inputs
+        x = self.conv1(states)
+        x = self.conv2(x)
+        x = self.conv3(x)
+        x = tf.concat([self.flatten(x), actions], axis=-1)
+        x = self.dense1(x)
+        q = self.out(x)
+        return q
+
+
+class ActorNetworkConv(tf.keras.Model):
+  def __init__(self, num_actions, min_action_values, max_action_values):
+    super(ActorNetworkConv, self).__init__()
+    self.min_action_values = min_action_values
+    self.max_action_values = max_action_values
+
+    self.conv1 = tf.keras.layers.Conv2D(32, 3, strides=(2, 2), activation='relu') # out 48,48,32
+    self.conv2 = tf.keras.layers.Conv2D(32, 4, strides=(2, 2), activation='relu') # out 24,24,32
+    self.conv3 = tf.keras.layers.Conv2D(64, 4, strides=(2, 2), activation='relu') # out 12,12,64
+    self.flatten = tf.keras.layers.Flatten()
+    self.dense1 = tf.keras.layers.Dense(128, activation='relu')
+    self.out = tf.keras.layers.Dense(num_actions, activation='tanh')
+
+  def call(self, states):
+    x = self.conv1(states)
+    x = self.conv2(x)
+    x = self.conv3(x)
+    x = self.flatten(x)
+    x = self.dense1(x)
+    x = self.out(x)
+    action = x * self.max_action_values
+    action_clipped = tf.clip_by_value(action, self.min_action_values, self.max_action_values)
+    return action_clipped
+
 
 class CriticNetwork(tf.keras.Model):
     def __init__(self, num_state_feats, num_action_feats):
         super(CriticNetwork, self).__init__()
-        self.dense1 = layers.Dense(
-            64, input_shape=(num_state_feats + num_action_feats,), activation="relu"
-        )
-        self.dense2 = layers.Dense(64, activation="relu")
+        self.dense1 = layers.Dense(400, activation="relu")
+        self.dense2 = layers.Dense(300, activation="relu")
         self.out = layers.Dense(1)
 
     def call(self, inputs):
@@ -45,9 +94,8 @@ class ActorNetwork(tf.keras.Model):
     def __init__(self, num_state_feats, num_action_feats, max_action_values):
         super(ActorNetwork, self).__init__()
         self.max_action_values = max_action_values
-
-        self.dense1 = layers.Dense(64, input_shape=(num_state_feats,), activation="relu")
-        self.dense2 = layers.Dense(64, activation="relu")
+        self.dense1 = layers.Dense(400, activation="relu")
+        self.dense2 = layers.Dense(300, activation="relu")
         self.out = layers.Dense(num_action_feats, activation="tanh")
 
     def call(self, state):
@@ -60,6 +108,7 @@ class ActorNetwork(tf.keras.Model):
 class DDPG(object):
     def __init__(
         self,
+        env_name,
         num_state_feats,
         num_action_feats,
         min_action_values,
@@ -78,10 +127,16 @@ class DDPG(object):
 
         self.buffer = ReplayBuffer(buffer_size)
 
-        self.actor = ActorNetwork(num_state_feats, num_action_feats, max_action_values)
-        self.actor_target = ActorNetwork(num_state_feats, num_action_feats, max_action_values)
-        self.critic = CriticNetwork(num_state_feats, num_action_feats)
-        self.critic_target = CriticNetwork(num_state_feats, num_action_feats)
+        if env_name == 'CarRacing-v0':
+            self.actor = ActorNetworkConv(num_action_feats, min_action_values, max_action_values)
+            self.actor_target = ActorNetworkConv(num_action_feats, min_action_values, max_action_values)
+            self.critic = CriticNetworkConv()
+            self.critic_target = CriticNetworkConv()
+        else:
+            self.actor = ActorNetwork(num_state_feats, num_action_feats, max_action_values)
+            self.actor_target = ActorNetwork(num_state_feats, num_action_feats, max_action_values)
+            self.critic = CriticNetwork(num_state_feats, num_action_feats)
+            self.critic_target = CriticNetwork(num_state_feats, num_action_feats)
 
         self.actor_lr = actor_lr
         self.critic_lr = critic_lr
