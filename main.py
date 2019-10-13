@@ -4,13 +4,15 @@ import gym
 
 from agents.ddpg import DDPG
 from agents.dqn import DQN
+from agents.double_dqn import DoubleDQN
+from agents.dueling_dqn import DuelingDQN
 
 
 
 def main():
-    discrete_action_agents = ['DQN', 'DoubleDQN', 'DuelingDQN']
-    continuous_action_agents = ['SimplePolicyGradient', 'DDPG']
-    discrete_envs = {'CartPole-v0': [DQN]}#, DoubleDQN, DuelingDQN]}
+    #discrete_action_agents = ['DQN', 'DoubleDQN', 'DuelingDQN']
+    #continuous_action_agents = ['SimplePolicyGradient', 'DDPG']
+    discrete_envs = {'CartPole-v0': [DuelingDQN, DoubleDQN, DQN]}
     continuous_envs = {'CarRacing-v0': [DDPG],
                        'BipedalWalker-v2': [DDPG],
                        'Pendulum-v0': [DDPG],
@@ -18,8 +20,8 @@ def main():
                        'BipedalWalkerHardcore-v2': [DDPG],
                        'MountainCarContinuous-v0': [DDPG],}
 
-    evaluate_continuous_envs(continuous_envs)
     evaluate_discrete_envs(discrete_envs)
+    evaluate_continuous_envs(continuous_envs)
 
 def evaluate_discrete_envs(discrete_envs):
     for env_name, agent_list in discrete_envs.items():
@@ -52,8 +54,8 @@ def run_env(env_name, agent_class):
         normalize_state = True
     
     noise = 0.1
-    num_episodes = 1000
-    num_train_steps = 500
+    num_episodes = 500
+    num_train_steps = 50
     batch_size = 64
     discount = 0.99
     last_100_ep_ret = []
@@ -61,6 +63,8 @@ def run_env(env_name, agent_class):
     for episode in range(num_episodes+1):
         # Reset environment.
         state = env.reset()
+        if normalize_state:
+            state = np.divide(state, max_observation_values, dtype=np.float32)
         done, ep_rew = False, 0
         while not done:
             state_in = np.expand_dims(state, axis=0)
@@ -78,7 +82,7 @@ def run_env(env_name, agent_class):
         last_100_ep_ret.append(ep_rew)
         
         if episode == 0:
-            print_env_info(env, env_name)
+            print_env_info(env, env_name, agent)
 
         # Keep collecting experience with the current policy.
         if len(agent.buffer) < batch_size:
@@ -113,9 +117,10 @@ def run_env(env_name, agent_class):
             print('Episode: {}/{}, '.format(episode, num_episodes) + loss_info + \
                   'Last 100 episode return: {:.2f}'.format(np.mean(last_100_ep_ret)))
 
-def print_env_info(env, env_name):
+def print_env_info(env, env_name, agent):
     print('\n\n\n=============================')
     print('Environemnt: {}'.format(env_name))
+    print('Agent: {}'.format(type(agent).__name__))
     print('Observation shape: {}'.format(env.observation_space.shape))
     print('Action shape: {}'.format(env.action_space))
     print('=============================\n')
