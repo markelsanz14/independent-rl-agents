@@ -12,11 +12,11 @@ All the algorithms have been implemented using Tensorflow 2.0, but use the tf.fu
 decorator for compiling them to graph mode for improved performance.
 
 ### Current status:
-| Algorithm                | Status                  | Type of Algorithm                    | Action Space | Paper Link |
-|--------------------------|-------------------------|--------------------------------------|--------------|------------|
-| DQN                      | :x: Not implemented yet | Model-Free, Off-Policy, Value-Based  | Discrete     |            |
-| Doube-DQN                | :x: Not implemented yet | Model-Free, Off-Policy, Value-Based  | Discrete     |            |
-| Dueling-DQN              | :x: Not implemented yet | Model-Free, Off-Policy, Value-Based  | Discrete     |            |
-| Simplest Policy Gradient | :x: Not implemented yet | Model-Free, On-Policy, Policy-Based  | Both         |            |
-| DDPG                     | :white_check_mark: Done | Model-Free, Off-Policy, Actor-Critic | Continuous   |            |
-| SAC                      | Planned for future      | Model-Free, Off-Policy, Actor-Critic | Both         |            |
+| Algorithm                | Status                            | Type of Algorithm                    | Action Space | Link |
+|--------------------------|-----------------------------------|--------------------------------------|--------------|------------|
+| DQN                      | :black_square_button: In progress | Model-Free, Off-Policy, Value-Based  | Discrete     | [Paper](https://www.cs.toronto.edu/~vmnih/docs/dqn.pdf) |
+| Doube-DQN                | :x: Not implemented yet           | Model-Free, Off-Policy, Value-Based  | Discrete     | [Paper](https://www.aaai.org/ocs/index.php/AAAI/AAAI16/paper/view/12389/11847) |
+| Dueling-DQN              | :x: Not implemented yet           | Model-Free, Off-Policy, Value-Based  | Discrete     | [Paper](https://arxiv.org/pdf/1511.06581.pdf) |
+| Simplest Policy Gradient | :x: Not implemented yet           | Model-Free, On-Policy, Policy-Based  | Both         |  |
+| DDPG                     | :white_check_mark: Done           | Model-Free, Off-Policy, Actor-Critic | Continuous   | [Paper](https://arxiv.org/pdf/1509.02971.pdf) |
+| SAC                      | Planned for future                | Model-Free, Off-Policy, Actor-Critic | Both         | [Paper](https://arxiv.org/pdf/1812.05905.pdf) |
