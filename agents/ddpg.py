@@ -50,28 +50,28 @@ class CriticNetworkConv(tf.keras.Model):
 
 
 class ActorNetworkConv(tf.keras.Model):
-  def __init__(self, num_actions, min_action_values, max_action_values):
-    super(ActorNetworkConv, self).__init__()
-    self.min_action_values = min_action_values
-    self.max_action_values = max_action_values
+    def __init__(self, num_actions, min_action_values, max_action_values):
+        super(ActorNetworkConv, self).__init__()
+        self.min_action_values = min_action_values
+        self.max_action_values = max_action_values
 
-    self.conv1 = tf.keras.layers.Conv2D(32, 3, strides=(2, 2), activation='relu') # out 48,48,32
-    self.conv2 = tf.keras.layers.Conv2D(32, 4, strides=(2, 2), activation='relu') # out 24,24,32
-    self.conv3 = tf.keras.layers.Conv2D(64, 4, strides=(2, 2), activation='relu') # out 12,12,64
-    self.flatten = tf.keras.layers.Flatten()
-    self.dense1 = tf.keras.layers.Dense(128, activation='relu')
-    self.out = tf.keras.layers.Dense(num_actions, activation='tanh')
+        self.conv1 = tf.keras.layers.Conv2D(32, 3, strides=(2, 2), activation='relu') # out 48,48,32
+        self.conv2 = tf.keras.layers.Conv2D(32, 4, strides=(2, 2), activation='relu') # out 24,24,32
+        self.conv3 = tf.keras.layers.Conv2D(64, 4, strides=(2, 2), activation='relu') # out 12,12,64
+        self.flatten = tf.keras.layers.Flatten()
+        self.dense1 = tf.keras.layers.Dense(128, activation='relu')
+        self.out = tf.keras.layers.Dense(num_actions, activation='tanh')
 
-  def call(self, states):
-    x = self.conv1(states)
-    x = self.conv2(x)
-    x = self.conv3(x)
-    x = self.flatten(x)
-    x = self.dense1(x)
-    x = self.out(x)
-    action = x * self.max_action_values
-    action_clipped = tf.clip_by_value(action, self.min_action_values, self.max_action_values)
-    return action_clipped
+    def call(self, states):
+        x = self.conv1(states)
+        x = self.conv2(x)
+        x = self.conv3(x)
+        x = self.flatten(x)
+        x = self.dense1(x)
+        x = self.out(x)
+        action = x * self.max_action_values
+        action_clipped = tf.clip_by_value(action, self.min_action_values, self.max_action_values)
+        return action_clipped
 
 
 class CriticNetwork(tf.keras.Model):
@@ -124,7 +124,6 @@ class DDPG(object):
         self.max_action_values = max_action_values
 
         self.discount = discount
-
         self.buffer = ReplayBuffer(buffer_size)
 
         if env_name == 'CarRacing-v0':
@@ -138,18 +137,16 @@ class DDPG(object):
             self.critic = CriticNetwork(num_state_feats, num_action_feats)
             self.critic_target = CriticNetwork(num_state_feats, num_action_feats)
 
-        self.actor_lr = actor_lr
-        self.critic_lr = critic_lr
-        self.actor_optimizer = tf.keras.optimizers.Adam(learning_rate=self.actor_lr)
-        self.critic_optimizer = tf.keras.optimizers.Adam(learning_rate=self.critic_lr)
+        self.actor_optimizer = tf.keras.optimizers.Adam(learning_rate=actor_lr)
+        self.critic_optimizer = tf.keras.optimizers.Adam(learning_rate=critic_lr)
         self.loss = tf.keras.losses.Huber()
 
-    def take_action_with_noise(self, state, noise_scale=0.1):
+    def take_exploration_action(self, state, noise_scale=0.1):
         """Takes action using self.actor network and adding noise for exploration."""
         act = self.actor(state) + tf.random.normal(
             shape=(self.num_action_feats,), stddev=noise_scale
         )
-        return tf.clip_by_value(act, self.min_action_values, self.max_action_values)
+        return tf.clip_by_value(act, self.min_action_values, self.max_action_values)[0]
 
     def update_target_network(self, source_weights, target_weights, tau=0.001):
         """Updates target networks using Polyak averaging."""
@@ -189,4 +186,4 @@ class DDPG(object):
 
         self.update_target_network(self.critic.weights, self.critic_target.weights, tau=0.001)
         self.update_target_network(self.actor.weights, self.actor_target.weights, tau=0.001)
-        return critic_loss, actor_loss
+        return actor_loss, critic_loss

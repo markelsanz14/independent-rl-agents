@@ -76,7 +76,6 @@ class DQN(object):
         self.num_actions = num_actions
         self.discount = discount
         self.buffer = ReplayBuffer(buffer_size)
-        self.step = 0
 
         if env_name == 'CarRacing-v0':
             self.main_nn = QNetworkConv(num_actions)
@@ -88,7 +87,7 @@ class DQN(object):
         self.optimizer = tf.keras.optimizers.Adam(learning_rate=lr)
         self.loss = tf.keras.losses.MeanSquaredError()
 
-    def take_epsilon_greedy_action(self, state, epsilon):
+    def take_exploration_action(self, state, epsilon=0.1):
         """Take random action with probability epsilon, else take best action."""
         result = tf.random.uniform((1,))
         if result < epsilon:
@@ -96,10 +95,10 @@ class DQN(object):
         else:
             return tf.argmax(self.main_nn(state)[0]) # Greedy action for state
 
-    def update_target_network(self, source_weights, target_weights):
+    def update_target_network(self, source_weights, target_weights, tau=0.005):
         """Updates target network copying the weights from the source."""
         for source_weight, target_weight in zip(source_weights, target_weights):
-            target_weight.assign(source_weight)
+            target_weight.assign(tau * source_weight + (1. - tau) * target_weight)
 
     @tf.function
     def train_step(self, states, actions, rewards, next_states, dones):
@@ -117,8 +116,5 @@ class DQN(object):
         grads = tape.gradient(loss, self.main_nn.trainable_variables)
         self.optimizer.apply_gradients(zip(grads, self.main_nn.trainable_variables))
 
-        self.step += 1
-        print(self.step)
-        if self.step % 100 == 0:
-            self.update_target_network(self.main_nn.weights, self.target_nn.weights)
-        return loss
+        self.update_target_network(self.main_nn.weights, self.target_nn.weights, tau=0.005)
+        return (loss,)
