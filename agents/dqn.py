@@ -1,7 +1,10 @@
 import tensorflow as tf
 import random
 
+from envs import ATARI_ENVS
+
 layers = tf.keras.layers
+
 
 class ReplayBuffer(object):
     def __init__(self, size):
@@ -26,11 +29,11 @@ class ReplayBuffer(object):
 class QNetworkConv(tf.keras.Model):
     def __init__(self, num_actions):
         super(QNetworkConv, self).__init__()
-        self.conv1 = layers.Conv2D(32, 3, strides=(2, 2), activation='relu') # out 48,48,32
-        self.conv2 = layers.Conv2D(32, 4, strides=(2, 2), activation='relu') # out 24,24,32
-        self.conv3 = layers.Conv2D(64, 4, strides=(2, 2), activation='relu') # out 12,12,64
+        self.conv1 = layers.Conv2D(32, 8, strides=(4, 4), activation='relu')
+        self.conv2 = layers.Conv2D(64, 4, strides=(2, 2), activation='relu')
+        self.conv3 = layers.Conv2D(64, 3, strides=(1, 1), activation='relu')
         self.flatten = layers.Flatten()
-        self.dense1 = layers.Dense(128, activation='relu')
+        self.dense1 = layers.Dense(512, activation='relu')
         self.out = layers.Dense(num_actions)
 
     def call(self, states):
@@ -40,9 +43,11 @@ class QNetworkConv(tf.keras.Model):
         Returns:
             qs: the q-values of the given state for all possible actions.
         """
+        states = tf.reshape(states, (-1, 84, 84, 1))
         x = self.conv1(states)
         x = self.conv2(x)
         x = self.conv3(x)
+        x = self.flatten(x)
         x = self.dense1(x)
         qs = self.out(x)
         return qs
@@ -68,7 +73,7 @@ class DQN(object):
         env_name,
         num_state_feats,
         num_actions,
-        lr=1e-3,
+        lr=2.5e-4,
         buffer_size=500000,
         discount=0.99,
     ):
@@ -77,7 +82,7 @@ class DQN(object):
         self.discount = discount
         self.buffer = ReplayBuffer(buffer_size)
 
-        if env_name == 'CarRacing-v0':
+        if env_name in ['CarRacing-v0'] + ATARI_ENVS:
             self.main_nn = QNetworkConv(num_actions)
             self.target_nn = QNetworkConv(num_actions)
         else:
@@ -87,13 +92,13 @@ class DQN(object):
         self.optimizer = tf.keras.optimizers.Adam(learning_rate=lr)
         self.loss = tf.keras.losses.MeanSquaredError()
 
-    def take_exploration_action(self, state, epsilon=0.1):
+    def take_exploration_action(self, state, env, epsilon=0.1):
         """Take random action with probability epsilon, else take best action."""
         result = tf.random.uniform((1,))
         if result < epsilon:
-            return tf.random.categorical([[1. / self.num_actions]], 1)[0, 0]
+            return env.action_space.sample()
         else:
-            return tf.argmax(self.main_nn(state)[0]) # Greedy action for state
+            return tf.argmax(self.main_nn(state)[0]).numpy() # Greedy action for state
 
     def update_target_network(self, source_weights, target_weights, tau=0.005):
         """Updates target network copying the weights from the source."""

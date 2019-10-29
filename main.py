@@ -1,41 +1,41 @@
 import numpy as np
 import tensorflow as tf
 import gym
+import csv
+from gym.wrappers import AtariPreprocessing
 
+from envs import ATARI_ENVS
 from agents.ddpg import DDPG
 from agents.dqn import DQN
 from agents.double_dqn import DoubleDQN
 from agents.dueling_dqn import DuelingDQN
 
 
-
 def main():
-    #discrete_action_agents = ['DQN', 'DoubleDQN', 'DuelingDQN']
-    #continuous_action_agents = ['SimplePolicyGradient', 'DDPG']
-    discrete_envs = {'CartPole-v0': [DuelingDQN, DoubleDQN, DQN]}
-    continuous_envs = {'CarRacing-v0': [DDPG],
-                       'BipedalWalker-v2': [DDPG],
-                       'Pendulum-v0': [DDPG],
-                       'LunarLanderContinuous-v2': [DDPG],
-                       'BipedalWalkerHardcore-v2': [DDPG],
-                       'MountainCarContinuous-v0': [DDPG],}
+    discrete_agents = [DQN, DuelingDQN, DoubleDQN]
+    discrete_envs = ATARI_ENVS
+    continuous_agents = [DDPG]
+    continuous_envs = ['CarRacing-v0', 'BipedalWalker-v2', 'Pendulum-v0',
+                       'LunarLanderContinuous-v2', 'BipedalWalkerHardcore-v2',
+                       'MountainCarContinuous-v0',
+                      ]
 
-    evaluate_discrete_envs(discrete_envs)
-    evaluate_continuous_envs(continuous_envs)
+    evaluate_envs(discrete_envs, discrete_agents)
+    evaluate_envs(continuous_envs, continuous_agents)
 
-def evaluate_discrete_envs(discrete_envs):
-    for env_name, agent_list in discrete_envs.items():
-        for agent_class in agent_list:
-            run_env(env_name, agent_class)
-
-def evaluate_continuous_envs(continuous_envs):
-    for env_name, agent_list in continuous_envs.items():
-        for agent_class in agent_list:
-            run_env(env_name, agent_class)
+def evaluate_envs(envs, agents):
+    for env_name in envs:
+        for agent_class in agents:
+            result = run_env(env_name, agent_class)
+            with open('results/{}_{}.csv'.format(agent_class.__name__, env_name), 'a+') as writeFile:
+                writer = csv.writer(writeFile)
+                writer.writerow(result)
 
 def run_env(env_name, agent_class):
     """Runs an agent in a single environment to evaluate its performance."""
     env = gym.make(env_name)
+    if env_name in ATARI_ENVS:
+        env = AtariPreprocessing(env)
     if isinstance(env.action_space, gym.spaces.Discrete):
         num_state_feats = env.observation_space.shape
         num_actions = env.action_space.n
@@ -50,15 +50,16 @@ def run_env(env_name, agent_class):
     min_observation_values = env.observation_space.low
     max_observation_values = env.observation_space.high
     normalize_state = False
-    if env_name in ['CarRacing-v0', 'Pendulum']:
+    if env_name in ['CarRacing-v0', 'Pendulum-v0'] + ATARI_ENVS:
         normalize_state = True
     
     noise = 0.1
-    num_episodes = 500
+    num_episodes = 100000
     num_train_steps = 50
-    batch_size = 64
+    batch_size = 32
     discount = 0.99
     last_100_ep_ret = []
+    results = []
 
     for episode in range(num_episodes+1):
         # Reset environment.
@@ -69,14 +70,14 @@ def run_env(env_name, agent_class):
         while not done:
             state_in = np.expand_dims(state, axis=0)
             # Sample action from policy and take that action in the env.
-            action = agent.take_exploration_action(state_in, noise)
-            next_state, reward, done, info = env.step(action.numpy())
+            action = agent.take_exploration_action(state_in, env, noise)
+            next_state, reward, done, info = env.step(action)
             if normalize_state:
                 next_state = np.divide(next_state, max_observation_values, dtype=np.float32)
             ep_rew += reward
             agent.buffer.add_to_buffer(state, action, reward, next_state, done)
             state = next_state
-
+            
         if len(last_100_ep_ret) == 100:
             last_100_ep_ret = last_100_ep_ret[1:]
         last_100_ep_ret.append(ep_rew)
@@ -91,22 +92,18 @@ def run_env(env_name, agent_class):
         # Perform training on data sampled from the replay buffer.
         for _ in range(num_train_steps):
             states, actions, rewards, next_states, dones = agent.buffer.sample(batch_size)
-            states = np.reshape(states, (batch_size,) + num_state_feats)
+            states = np.reshape(states, (batch_size,) + num_state_feats).astype(np.float32)
             if isinstance(env.action_space, gym.spaces.Discrete):
                 actions = np.reshape(actions, (batch_size, )).astype(np.uint8)
             else:
                 actions = np.reshape(actions, (batch_size, -1)).astype(np.float32)
-            rewards = np.reshape(rewards, (batch_size, ))
-            next_states = np.reshape(next_states, (batch_size, ) + num_state_feats)
-            dones = np.reshape(dones, (batch_size, ))
-            loss_tuple = agent.train_step(states.astype(np.float32),
-                                          actions,
-                                          rewards.astype(np.float32),
-                                          next_states.astype(np.float32),
-                                          dones.astype(np.float32))
+            rewards = np.reshape(rewards, (batch_size, )).astype(np.float32)
+            next_states = np.reshape(next_states, (batch_size, ) + num_state_feats).astype(np.float32)
+            dones = np.reshape(dones, (batch_size, )).astype(np.float32)
+            loss_tuple = agent.train_step(states, actions, rewards, next_states, dones)
 
         # Print the performance of the policy.
-        if episode % 20 == 0:
+        if episode % 100 == 0:
             if len(loss_tuple) == 1:
                 loss = loss_tuple[0]
                 loss_info = 'Loss: {:.2f}, '.format(loss)
@@ -116,6 +113,9 @@ def run_env(env_name, agent_class):
                             'Critic loss: {:.2f} '.format(critic_loss)
             print('Episode: {}/{}, '.format(episode, num_episodes) + loss_info + \
                   'Last 100 episode return: {:.2f}'.format(np.mean(last_100_ep_ret)))
+
+        results.append(np.mean(last_100_ep_ret))
+    return results
 
 def print_env_info(env, env_name, agent):
     print('\n\n\n=============================')
