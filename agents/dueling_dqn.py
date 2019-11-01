@@ -46,6 +46,7 @@ class QNetworkConv(tf.keras.Model):
         x = self.conv1(states)
         x = self.conv2(x)
         x = self.conv3(x)
+        x = self.flatten(x)
         x = self.dense1(x)
         qs = self.out(x)
         return qs
