@@ -1,4 +1,5 @@
 import tensorflow as tf
+import time
 import random
 
 from envs import ATARI_ENVS
@@ -99,13 +100,19 @@ class DuelingDQN(object):
         self.optimizer = tf.keras.optimizers.Adam(learning_rate=lr)
         self.loss = tf.keras.losses.MeanSquaredError()
 
+    @tf.function
+    def run_main_nn(self, state):
+        return self.main_nn(state)
+
     def take_exploration_action(self, state, env, epsilon=0.1):
         """Take random action with probability epsilon, else take best action."""
         result = tf.random.uniform((1,))
         if result < epsilon:
             return env.action_space.sample()
         else:
-            return tf.argmax(self.main_nn(state)[0]).numpy() # Greedy action for state
+            qs = self.run_main_nn(state)
+            ret = tf.argmax(qs[0]).numpy() # Greedy action for state
+            return ret
 
     def update_target_network(self, source_weights, target_weights, tau=0.005):
         """Updates target network copying the weights from the source."""
