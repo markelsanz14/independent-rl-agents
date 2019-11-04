@@ -12,8 +12,8 @@ from agents.dueling_dqn import DuelingDQN
 
 
 def main():
-    discrete_agents = [DQN, DuelingDQN, DoubleDQN]
-    discrete_envs = ATARI_ENVS
+    discrete_agents = [DuelingDQN, DQN, DuelingDQN, DoubleDQN]
+    discrete_envs = ['Breakout-v0']#ATARI_ENVS
     continuous_agents = [DDPG]
     continuous_envs = ['CarRacing-v0', 'BipedalWalker-v2', 'Pendulum-v0',
                        'LunarLanderContinuous-v2', 'BipedalWalkerHardcore-v2',

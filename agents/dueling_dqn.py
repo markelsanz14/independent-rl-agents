@@ -33,7 +33,9 @@ class QNetworkConv(tf.keras.Model):
         self.conv3 = layers.Conv2D(64, 3, strides=(1, 1), activation='relu')
         self.flatten = layers.Flatten()
         self.dense1 = layers.Dense(512, activation='relu')
-        self.out = layers.Dense(num_actions)
+        self.V = layers.Dense(1)
+        self.A = layers.Dense(num_actions)
+        self.Q = layers.Dense(num_actions)
 
     def call(self, states):
         """Calls the neural network with some inputs.
@@ -48,8 +50,10 @@ class QNetworkConv(tf.keras.Model):
         x = self.conv3(x)
         x = self.flatten(x)
         x = self.dense1(x)
-        qs = self.out(x)
-        return qs
+        V = self.V(x)
+        A = self.A(x)
+        Q = V + tf.subtract(A, tf.reduce_mean(A, axis=1, keepdims=True))
+        return Q
 
 
 class QNetwork(tf.keras.Model):
