@@ -3,33 +3,54 @@ import random
 
 layers = tf.keras.layers
 
+
 class ReplayBuffer(object):
+    """Experience replay buffer that samples uniformly."""
+
     def __init__(self, size):
+        """Initializes the buffer."""
         self.buffer = []
         self._size = size
+        self._next_pos = 0
 
     def __len__(self):
         return len(self.buffer)
 
     def add_to_buffer(self, state, action, reward, next_state, done):
         """Adds data to experience replay buffer."""
-        if len(self.buffer) == self._size:
-            self.buffer = self.buffer[1:]
-        self.buffer.append((state, action, reward, next_state, done))
+        if len(self.buffer) < self._size:
+            self.buffer.append((state, action, reward, next_state, done))
+        else:
+            self.buffer[self._next_pos] = (
+                state,
+                action,
+                reward,
+                next_state,
+                done,
+            )
+        self._next_pos = (self._next_pos + 1) % self._size
 
     def sample(self, num_samples):
+        """Samples num_sample elements from the buffer."""
         batch = random.sample(self.buffer, num_samples)
         states, actions, rewards, next_states, dones = list(zip(*batch))
         return states, actions, rewards, next_states, dones
 
+
 class CriticNetworkConv(tf.keras.Model):
     def __init__(self):
         super(CriticNetworkConv, self).__init__()
-        self.conv1 = tf.keras.layers.Conv2D(32, 3, strides=(2, 2), activation='relu') # out 48,48,32
-        self.conv2 = tf.keras.layers.Conv2D(32, 4, strides=(2, 2), activation='relu') # out 24,24,32
-        self.conv3 = tf.keras.layers.Conv2D(64, 4, strides=(2, 2), activation='relu') # out 12,12,64
+        self.conv1 = tf.keras.layers.Conv2D(
+            32, 3, strides=(2, 2), activation="relu"
+        )  # out 48,48,32
+        self.conv2 = tf.keras.layers.Conv2D(
+            32, 4, strides=(2, 2), activation="relu"
+        )  # out 24,24,32
+        self.conv3 = tf.keras.layers.Conv2D(
+            64, 4, strides=(2, 2), activation="relu"
+        )  # out 12,12,64
         self.flatten = tf.keras.layers.Flatten()
-        self.dense1 = tf.keras.layers.Dense(128, activation='relu')
+        self.dense1 = tf.keras.layers.Dense(128, activation="relu")
         self.out = tf.keras.layers.Dense(1)
 
     def call(self, inputs):
@@ -55,12 +76,18 @@ class ActorNetworkConv(tf.keras.Model):
         self.min_action_values = min_action_values
         self.max_action_values = max_action_values
 
-        self.conv1 = tf.keras.layers.Conv2D(32, 3, strides=(2, 2), activation='relu') # out 48,48,32
-        self.conv2 = tf.keras.layers.Conv2D(32, 4, strides=(2, 2), activation='relu') # out 24,24,32
-        self.conv3 = tf.keras.layers.Conv2D(64, 4, strides=(2, 2), activation='relu') # out 12,12,64
+        self.conv1 = tf.keras.layers.Conv2D(
+            32, 3, strides=(2, 2), activation="relu"
+        )  # out 48,48,32
+        self.conv2 = tf.keras.layers.Conv2D(
+            32, 4, strides=(2, 2), activation="relu"
+        )  # out 24,24,32
+        self.conv3 = tf.keras.layers.Conv2D(
+            64, 4, strides=(2, 2), activation="relu"
+        )  # out 12,12,64
         self.flatten = tf.keras.layers.Flatten()
-        self.dense1 = tf.keras.layers.Dense(128, activation='relu')
-        self.out = tf.keras.layers.Dense(num_actions, activation='tanh')
+        self.dense1 = tf.keras.layers.Dense(128, activation="relu")
+        self.out = tf.keras.layers.Dense(num_actions, activation="tanh")
 
     def call(self, states):
         x = self.conv1(states)
@@ -70,7 +97,9 @@ class ActorNetworkConv(tf.keras.Model):
         x = self.dense1(x)
         x = self.out(x)
         action = x * self.max_action_values
-        action_clipped = tf.clip_by_value(action, self.min_action_values, self.max_action_values)
+        action_clipped = tf.clip_by_value(
+            action, self.min_action_values, self.max_action_values
+        )
         return action_clipped
 
 
@@ -126,36 +155,60 @@ class DDPG(object):
         self.discount = discount
         self.buffer = ReplayBuffer(buffer_size)
 
-        if env_name == 'CarRacing-v0':
-            self.actor = ActorNetworkConv(num_action_feats, min_action_values, max_action_values)
-            self.actor_target = ActorNetworkConv(num_action_feats, min_action_values, max_action_values)
+        if env_name == "CarRacing-v0":
+            self.actor = ActorNetworkConv(
+                num_action_feats, min_action_values, max_action_values
+            )
+            self.actor_target = ActorNetworkConv(
+                num_action_feats, min_action_values, max_action_values
+            )
             self.critic = CriticNetworkConv()
             self.critic_target = CriticNetworkConv()
         else:
-            self.actor = ActorNetwork(num_state_feats, num_action_feats, max_action_values)
-            self.actor_target = ActorNetwork(num_state_feats, num_action_feats, max_action_values)
+            self.actor = ActorNetwork(
+                num_state_feats, num_action_feats, max_action_values
+            )
+            self.actor_target = ActorNetwork(
+                num_state_feats, num_action_feats, max_action_values
+            )
             self.critic = CriticNetwork(num_state_feats, num_action_feats)
-            self.critic_target = CriticNetwork(num_state_feats, num_action_feats)
+            self.critic_target = CriticNetwork(
+                num_state_feats, num_action_feats
+            )
 
         self.actor_optimizer = tf.keras.optimizers.Adam(learning_rate=actor_lr)
-        self.critic_optimizer = tf.keras.optimizers.Adam(learning_rate=critic_lr)
+        self.critic_optimizer = tf.keras.optimizers.Adam(
+            learning_rate=critic_lr
+        )
         self.loss = tf.keras.losses.Huber()
 
     def take_exploration_action(self, state, noise_scale=0.1):
-        """Takes action using self.actor network and adding noise for exploration."""
+        """Takes action using self.actor network and adding noise for
+        exploration."""
         act = self.actor(state) + tf.random.normal(
             shape=(self.num_action_feats,), stddev=noise_scale
         )
-        return tf.clip_by_value(act, self.min_action_values, self.max_action_values)[0]
+        return tf.clip_by_value(
+            act, self.min_action_values, self.max_action_values
+        )[0]
 
     def update_target_network(self, source_weights, target_weights, tau=0.001):
         """Updates target networks using Polyak averaging."""
-        for source_weight, target_weight in zip(source_weights, target_weights):
-            target_weight.assign(tau * source_weight + (1.0 - tau) * target_weight)
+        for source_weight, target_weight in zip(
+            source_weights, target_weights
+        ):
+            target_weight.assign(
+                tau * source_weight + (1.0 - tau) * target_weight
+            )
 
     @tf.function
     def train_step(
-        self, batch_states, batch_actions, batch_rewards, batch_next_states, batch_dones
+        self,
+        batch_states,
+        batch_actions,
+        batch_rewards,
+        batch_next_states,
+        batch_dones,
     ):
         # Calculate critic target.
         next_actions = self.actor_target(batch_next_states)
@@ -169,8 +222,12 @@ class DDPG(object):
             critic_loss = self.loss(target, qs)
 
         # Calculate and apply critic gradients.
-        critic_gradients = tape.gradient(critic_loss, self.critic.trainable_variables)
-        self.critic_optimizer.apply_gradients(zip(critic_gradients, self.critic.trainable_variables))
+        critic_gradients = tape.gradient(
+            critic_loss, self.critic.trainable_variables
+        )
+        self.critic_optimizer.apply_gradients(
+            zip(critic_gradients, self.critic.trainable_variables)
+        )
 
         with tf.GradientTape() as tape:
             # Calculate actor loss.
@@ -179,11 +236,17 @@ class DDPG(object):
             actor_loss = -tf.reduce_mean(policy_qs)
 
         # Calculate and apply actor gradients.
-        actor_gradients = tape.gradient(actor_loss, self.actor.trainable_variables)
+        actor_gradients = tape.gradient(
+            actor_loss, self.actor.trainable_variables
+        )
         self.actor_optimizer.apply_gradients(
             zip(actor_gradients, self.actor.trainable_variables)
         )
 
-        self.update_target_network(self.critic.weights, self.critic_target.weights, tau=0.001)
-        self.update_target_network(self.actor.weights, self.actor_target.weights, tau=0.001)
+        self.update_target_network(
+            self.critic.weights, self.critic_target.weights, tau=0.001
+        )
+        self.update_target_network(
+            self.actor.weights, self.actor_target.weights, tau=0.001
+        )
         return actor_loss, critic_loss
