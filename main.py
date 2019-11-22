@@ -9,13 +9,14 @@ from envs import ATARI_ENVS
 from agents.ddpg import DDPG
 from agents.dqn import DQN
 from agents.double_dqn import DoubleDQN
+from agents.double_dueling_dqn import DoubleDuelingDQN
 from agents.dueling_dqn import DuelingDQN
 
 
 def main():
     """Main function. It runs the different algorithms in all the environemnts.
     """
-    discrete_agents = [DQN, DuelingDQN, DoubleDQN]
+    discrete_agents = [DoubleDuelingDQN, DQN, DuelingDQN, DoubleDQN]
     discrete_envs = ATARI_ENVS
     continuous_agents = [DDPG]
     continuous_envs = [
@@ -42,7 +43,7 @@ def evaluate_envs(envs, agents):
             result = run_env(env_name, agent_class, clip_rewards)
             with open(
                 "results/{}_{}_ClipRew{}.csv".format(
-                    agent_class.__name__, env_name, clip_rewards,
+                    agent_class.__name__, env_name, clip_rewards
                 ),
                 "a+",
             ) as writeFile:
@@ -80,7 +81,7 @@ def run_env(env_name, agent_class, clip_rewards=True):
         )
 
     noise = 0.1
-    num_episodes = 100000
+    num_episodes = 200000
     num_train_steps = 50
     batch_size = 32
     last_100_ep_ret = []
