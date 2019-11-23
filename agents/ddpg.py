@@ -142,8 +142,8 @@ class DDPG(object):
         num_action_feats,
         min_action_values,
         max_action_values,
-        actor_lr=1e-3,
-        critic_lr=1e-3,
+        actor_lr=1e-4,
+        critic_lr=1e-4,
         buffer_size=500000,
         discount=0.99,
     ):
@@ -187,7 +187,7 @@ class DDPG(object):
         )
         self.manager_main = tf.train.CheckpointManager(
             self.ckpt_main,
-            "./saved_models/DQN-{}-{}".format(env_name),
+            "./saved_models/DDPG-{}".format(env_name),
             max_to_keep=3,
         )
         self.ckpt_main.restore(self.manager_main.latest_checkpoint)
@@ -268,9 +268,9 @@ class DDPG(object):
         )
 
         self.update_target_network(
-            self.critic.weights, self.critic_target.weights, tau=0.001
+            self.critic.weights, self.critic_target.weights
         )
         self.update_target_network(
-            self.actor.weights, self.actor_target.weights, tau=0.001
+            self.actor.weights, self.actor_target.weights
         )
         return actor_loss, critic_loss

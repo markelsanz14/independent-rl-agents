@@ -17,7 +17,7 @@ def main():
     """Main function. It runs the different algorithms in all the environemnts.
     """
     discrete_agents = [DQN, DuelingDQN, DoubleDQN, DoubleDuelingDQN]
-    discrete_envs = ATARI_ENVS
+    discrete_envs = ATARI_ENVS[0:2]
     continuous_agents = [DDPG]
     continuous_envs = [
         "CarRacing-v0",

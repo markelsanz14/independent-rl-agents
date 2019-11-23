@@ -100,7 +100,7 @@ class DoubleDQN(object):
         env_name,
         num_state_feats,
         num_actions,
-        lr=1e-3,
+        lr=1e-4,
         buffer_size=500000,
         discount=0.99,
     ):
@@ -126,7 +126,7 @@ class DoubleDQN(object):
         )
         self.manager_main = tf.train.CheckpointManager(
             self.ckpt_main,
-            "./saved_models/DQN-{}-{}".format(env_name),
+            "./saved_models/DoubleDQN-{}".format(env_name),
             max_to_keep=3,
         )
         self.ckpt_main.restore(self.manager_main.latest_checkpoint)
@@ -168,7 +168,7 @@ class DoubleDQN(object):
             qs = self.run_main_nn(state)
             return tf.argmax(qs[0]).numpy()  # Greedy action for state
 
-    def update_target_network(self, source_weights, target_weights, tau=0.005):
+    def update_target_network(self, source_weights, target_weights, tau=0.001):
         """Updates target network copying the weights from the source to the
         target.
         Args:
@@ -212,6 +212,6 @@ class DoubleDQN(object):
         )
 
         self.update_target_network(
-            self.main_nn.weights, self.target_nn.weights, tau=0.005
+            self.main_nn.weights, self.target_nn.weights
         )
         return (loss,)
