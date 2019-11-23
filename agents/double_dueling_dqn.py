@@ -130,6 +130,30 @@ class DoubleDuelingDQN(object):
             learning_rate=lr, clipnorm=10
         )
         self.loss = tf.keras.losses.Huber()
+        # Checkpoints.
+        self.ckpt_main = tf.train.Checkpoint(
+            step=tf.Variable(1), optimizer=self.optimizer, net=self.main_nn
+        )
+        self.manager_main = tf.train.CheckpointManager(
+            self.ckpt_main,
+            "./saved_models/DQN-{}-{}".format(env_name),
+            max_to_keep=3,
+        )
+        self.ckpt_main.restore(self.manager_main.latest_checkpoint)
+        if self.manager_main.latest_checkpoint:
+            print(
+                "Restored from {}".format(self.manager_main.latest_checkpoint)
+            )
+        else:
+            print("Initializing main neural network from scratch.")
+
+    def save_checkpoint(self):
+        save_path_main = self.manager_main.save()
+        print(
+            "Saved main_nn checkpoint for step {}: {}".format(
+                int(self.ckpt_main.step), save_path_main
+            )
+        )
 
     @tf.function
     def run_main_nn(self, state):

@@ -16,7 +16,7 @@ from agents.dueling_dqn import DuelingDQN
 def main():
     """Main function. It runs the different algorithms in all the environemnts.
     """
-    discrete_agents = [DoubleDuelingDQN, DQN, DuelingDQN, DoubleDQN]
+    discrete_agents = [DQN, DuelingDQN, DoubleDQN]
     discrete_envs = ATARI_ENVS
     continuous_agents = [DDPG]
     continuous_envs = [
@@ -136,7 +136,7 @@ def run_env(env_name, agent_class, clip_rewards=True):
             )
 
         # Print the performance of the policy.
-        if episode % 100 == 0:
+        if episode % 250 == 0:
             if len(loss_tuple) == 1:
                 loss = loss_tuple[0]
                 loss_info = "Loss: {:.2f}, ".format(loss)
@@ -152,6 +152,8 @@ def run_env(env_name, agent_class, clip_rewards=True):
                     np.mean(last_100_ep_ret)
                 )
             )
+        if episode % 10000 == 0:
+            agent.save_checkpoint()
 
         results.append(np.mean(last_100_ep_ret))
     return results
