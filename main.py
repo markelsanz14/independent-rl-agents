@@ -16,7 +16,7 @@ from agents.dueling_dqn import DuelingDQN
 def main():
     """Main function. It runs the different algorithms in all the environemnts.
     """
-    discrete_agents = [DQN, DuelingDQN, DoubleDQN]
+    discrete_agents = [DQN, DuelingDQN, DoubleDQN, DoubleDuelingDQN]
     discrete_envs = ATARI_ENVS
     continuous_agents = [DDPG]
     continuous_envs = [
