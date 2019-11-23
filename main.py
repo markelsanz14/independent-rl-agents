@@ -1,4 +1,5 @@
 import csv
+import os
 
 import numpy as np
 import tensorflow as tf
@@ -16,8 +17,8 @@ from agents.dueling_dqn import DuelingDQN
 def main():
     """Main function. It runs the different algorithms in all the environemnts.
     """
-    discrete_agents = [DQN, DuelingDQN, DoubleDQN, DoubleDuelingDQN]
-    discrete_envs = ATARI_ENVS[0:2]
+    discrete_agents = [DQN] # , DuelingDQN, DoubleDQN, DoubleDuelingDQN]
+    discrete_envs = ATARI_ENVS[12:14]
     continuous_agents = [DDPG]
     continuous_envs = [
         "CarRacing-v0",
@@ -28,7 +29,7 @@ def main():
         "MountainCarContinuous-v0",
     ]
     evaluate_envs(discrete_envs, discrete_agents)
-    evaluate_envs(continuous_envs, continuous_agents)
+    #evaluate_envs(continuous_envs, continuous_agents)
 
 
 def evaluate_envs(envs, agents):
@@ -40,6 +41,12 @@ def evaluate_envs(envs, agents):
     clip_rewards = True
     for agent_class in agents:
         for env_name in envs:
+            os.environ["CUDA_VISIBLE_DEVICES"] = "2"
+            gpus = tf.config.experimental.list_physical_devices("GPU")
+            if gpus:
+                # Currently, memory growth needs to be the same across GPUs
+                for gpu in gpus:
+                    tf.config.experimental.set_memory_growth(gpu, True)
             result = run_env(env_name, agent_class, clip_rewards)
             with open(
                 "results/{}_{}_ClipRew{}.csv".format(
@@ -84,6 +91,7 @@ def run_env(env_name, agent_class, clip_rewards=True):
     num_episodes = 200000
     num_train_steps = 50
     batch_size = 32
+    frame_num = 0
     last_100_ep_ret = []
     results = []
 
@@ -96,6 +104,7 @@ def run_env(env_name, agent_class, clip_rewards=True):
             # Sample action from policy and take that action in the env.
             action = agent.take_exploration_action(state_in, env, noise)
             next_state, reward, done, info = env.step(action)
+            frame_num += 1
             ep_rew += reward
             if clip_rewards:
                 if reward < 0:
@@ -148,9 +157,10 @@ def run_env(env_name, agent_class, clip_rewards=True):
             print(
                 "Episode: {}/{}, ".format(episode, num_episodes)
                 + loss_info
-                + "Last 100 episode return: {:.2f}".format(
+                + "Last 100 episode return: {:.2f}, ".format(
                     np.mean(last_100_ep_ret)
                 )
+                + 'Frame: {}'.format(frame_num)
             )
         if episode % 10000 == 0 and episode > 0:
             agent.save_checkpoint()
