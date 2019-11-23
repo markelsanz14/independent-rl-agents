@@ -152,7 +152,7 @@ def run_env(env_name, agent_class, clip_rewards=True):
                     np.mean(last_100_ep_ret)
                 )
             )
-        if episode % 10000 == 0:
+        if episode % 10000 == 0 and episode > 0:
             agent.save_checkpoint()
 
         results.append(np.mean(last_100_ep_ret))

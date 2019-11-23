@@ -143,7 +143,7 @@ class DQN(object):
         num_state_feats,
         num_actions,
         lr=1e-4,
-        buffer_size=500000,
+        buffer_size=100000,
         discount=0.99,
     ):
         """Initializes the class."""

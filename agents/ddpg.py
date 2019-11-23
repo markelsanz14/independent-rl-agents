@@ -144,7 +144,7 @@ class DDPG(object):
         max_action_values,
         actor_lr=1e-4,
         critic_lr=1e-4,
-        buffer_size=500000,
+        buffer_size=100000,
         discount=0.99,
     ):
         self.num_state_feats = num_state_feats
