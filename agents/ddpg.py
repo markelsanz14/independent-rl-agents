@@ -34,7 +34,13 @@ class ReplayBuffer(object):
         """Samples num_sample elements from the buffer."""
         batch = random.sample(self.buffer, num_samples)
         states, actions, rewards, next_states, dones = list(zip(*batch))
-        return states, actions, rewards, next_states, dones
+        return (
+            np.array(states, dtype=np.float32),
+            np.array(actions),
+            np.array(rewards, dtype=np.float32),
+            np.array(next_states, dtype=np.float32),
+            np.array(dones, dtype=np.float32),
+        )
 
 
 class CriticNetworkConv(tf.keras.Model):
@@ -206,6 +212,7 @@ class DDPG(object):
             )
         )
 
+    @tf.function
     def take_exploration_action(self, state, noise_scale=0.1):
         """Takes action using self.actor network and adding noise for
         exploration."""

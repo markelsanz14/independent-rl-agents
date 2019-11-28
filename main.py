@@ -17,8 +17,8 @@ from agents.dueling_dqn import DuelingDQN
 def main():
     """Main function. It runs the different algorithms in all the environemnts.
     """
-    discrete_agents = [DQN] # , DuelingDQN, DoubleDQN, DoubleDuelingDQN]
-    discrete_envs = ATARI_ENVS[12:14]
+    discrete_agents = [DQN]  # , DuelingDQN, DoubleDQN, DoubleDuelingDQN]
+    discrete_envs = ATARI_ENVS[22:23]
     continuous_agents = [DDPG]
     continuous_envs = [
         "CarRacing-v0",
@@ -29,7 +29,7 @@ def main():
         "MountainCarContinuous-v0",
     ]
     evaluate_envs(discrete_envs, discrete_agents)
-    #evaluate_envs(continuous_envs, continuous_agents)
+    # evaluate_envs(continuous_envs, continuous_agents)
 
 
 def evaluate_envs(envs, agents):
@@ -130,16 +130,6 @@ def run_env(env_name, agent_class, clip_rewards=True):
             states, actions, rewards, next_states, dones = agent.buffer.sample(
                 batch_size
             )
-            states = tf.reshape(states, (batch_size,) + num_state_feats)
-            if isinstance(env.action_space, gym.spaces.Discrete):
-                actions = tf.cast(tf.reshape(actions, (batch_size,)), tf.uint8)
-            else:
-                actions = tf.reshape(actions, (batch_size, -1))
-            rewards = tf.reshape(rewards, (batch_size,))
-            next_states = tf.reshape(
-                next_states, (batch_size,) + num_state_feats
-            )
-            dones = tf.cast(tf.reshape(dones, (batch_size,)), tf.float32)
             loss_tuple = agent.train_step(
                 states, actions, rewards, next_states, dones
             )
@@ -160,7 +150,7 @@ def run_env(env_name, agent_class, clip_rewards=True):
                 + "Last 100 episode return: {:.2f}, ".format(
                     np.mean(last_100_ep_ret)
                 )
-                + 'Frame: {}'.format(frame_num)
+                + "Frame: {}".format(frame_num)
             )
         if episode % 10000 == 0 and episode > 0:
             agent.save_checkpoint()

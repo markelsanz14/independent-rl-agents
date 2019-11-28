@@ -1,5 +1,7 @@
-import tensorflow as tf
 import random
+
+import numpy as np
+import tensorflow as tf
 
 from envs import ATARI_ENVS
 
@@ -36,7 +38,13 @@ class ReplayBuffer(object):
         """Samples num_sample elements from the buffer."""
         batch = random.sample(self.buffer, num_samples)
         states, actions, rewards, next_states, dones = list(zip(*batch))
-        return states, actions, rewards, next_states, dones
+        return (
+            np.array(states, dtype=np.float32),
+            np.array(actions),
+            np.array(rewards, dtype=np.float32),
+            np.array(next_states, dtype=np.float32),
+            np.array(dones, dtype=np.float32),
+        )
 
 
 class QNetworkConv(tf.keras.Model):
@@ -171,12 +179,12 @@ class DoubleDuelingDQN(object):
         Returns:
             action: int, the action number that was selected.
         """
-        result = tf.random.uniform((1,))
+        result = np.random.uniform()
         if result < epsilon:
             return env.action_space.sample()
         else:
-            qs = self.run_main_nn(state)
-            return tf.argmax(qs[0]).numpy()  # Greedy action for state
+            q = self.run_main_nn(state).numpy()
+            return np.argmax(q)  # Greedy action for state
 
     def update_target_network(self, source_weights, target_weights, tau=0.001):
         """Updates target network copying the weights from the source to the
