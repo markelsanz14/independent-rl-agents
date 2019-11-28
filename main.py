@@ -18,7 +18,7 @@ def main():
     """Main function. It runs the different algorithms in all the environemnts.
     """
     discrete_agents = [DQN]  # , DuelingDQN, DoubleDQN, DoubleDuelingDQN]
-    discrete_envs = ATARI_ENVS[0:1]
+    discrete_envs = ATARI_ENVS[2:3]
     continuous_agents = [DDPG]
     continuous_envs = [
         "CarRacing-v0",
@@ -88,14 +88,13 @@ def run_env(env_name, agent_class, clip_rewards=True):
         )
 
     noise = 0.1
-    num_episodes = 200000
-    num_train_steps = 50
     batch_size = 32
-    frame_num = 0
-    last_100_ep_ret = []
-    results = []
 
-    for episode in range(num_episodes + 1):
+    num_frames = 200000000
+    cur_frame, episode = 0, 0
+    last_100_ep_ret, results = [], []
+
+    while cur_frame < num_frames:
         # Reset environment.
         state = env.reset()
         done, ep_rew = False, 0
@@ -104,7 +103,7 @@ def run_env(env_name, agent_class, clip_rewards=True):
             # Sample action from policy and take that action in the env.
             action = agent.take_exploration_action(state_in, env, noise)
             next_state, reward, done, info = env.step(action)
-            frame_num += 1
+            cur_frame += 1
             ep_rew += reward
             if clip_rewards:
                 if reward < 0:
@@ -113,6 +112,15 @@ def run_env(env_name, agent_class, clip_rewards=True):
                     reward = 1.0
             agent.buffer.add_to_buffer(state, action, reward, next_state, done)
             state = next_state
+
+            if len(agent.buffer) >= batch_size:
+                # Perform training on data sampled from the replay buffer.
+                states, actions, rewards, next_states, dones = agent.buffer.sample(
+                    batch_size
+                )
+                loss_tuple = agent.train_step(
+                    states, actions, rewards, next_states, dones
+                )
 
         if len(last_100_ep_ret) == 100:
             last_100_ep_ret = last_100_ep_ret[1:]
@@ -125,17 +133,8 @@ def run_env(env_name, agent_class, clip_rewards=True):
         if len(agent.buffer) < batch_size:
             continue
 
-        # Perform training on data sampled from the replay buffer.
-        for _ in range(num_train_steps):
-            states, actions, rewards, next_states, dones = agent.buffer.sample(
-                batch_size
-            )
-            loss_tuple = agent.train_step(
-                states, actions, rewards, next_states, dones
-            )
-
         # Print the performance of the policy.
-        if episode % 250 == 0:
+        if cur_frame % 100000 == 0:
             if len(loss_tuple) == 1:
                 loss = loss_tuple[0]
                 loss_info = "Loss: {:.2f}, ".format(loss)
@@ -145,17 +144,17 @@ def run_env(env_name, agent_class, clip_rewards=True):
                     actor_loss
                 ) + "Critic loss: {:.2f} ".format(critic_loss)
             print(
-                "Episode: {}/{}, ".format(episode, num_episodes)
+                "Frame: {}/{}, ".format(cur_frame, num_frames)
                 + loss_info
                 + "Last 100 episode return: {:.2f}, ".format(
                     np.mean(last_100_ep_ret)
                 )
-                + "Frame: {}".format(frame_num)
             )
         if episode % 10000 == 0 and episode > 0:
             agent.save_checkpoint()
 
         results.append(np.mean(last_100_ep_ret))
+        episode += 1
     return results
 
 

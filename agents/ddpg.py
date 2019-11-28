@@ -1,5 +1,7 @@
-import tensorflow as tf
 import random
+
+import numpy as np
+import tensorflow as tf
 
 layers = tf.keras.layers
 
