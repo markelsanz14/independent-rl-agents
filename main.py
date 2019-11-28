@@ -18,7 +18,7 @@ def main():
     """Main function. It runs the different algorithms in all the environemnts.
     """
     discrete_agents = [DQN]  # , DuelingDQN, DoubleDQN, DoubleDuelingDQN]
-    discrete_envs = ATARI_ENVS[0:1]
+    discrete_envs = ATARI_ENVS[2:3]
     continuous_agents = [DDPG]
     continuous_envs = [
         "CarRacing-v0",
@@ -121,6 +121,9 @@ def run_env(env_name, agent_class, clip_rewards=True):
                 loss_tuple = agent.train_step(
                     states, actions, rewards, next_states, dones
                 )
+
+            if cur_frame % 10000 == 0:
+                agent.target_nn.set_weights(agent.main_nn.get_weights())
 
         if len(last_100_ep_ret) == 100:
             last_100_ep_ret = last_100_ep_ret[1:]

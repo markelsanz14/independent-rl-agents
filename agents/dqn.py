@@ -257,7 +257,7 @@ class DQN(object):
             zip(grads, self.main_nn.trainable_variables)
         )
 
-        self.update_target_network(
-            self.main_nn.weights, self.target_nn.weights
-        )
+        #self.update_target_network(
+        #    self.main_nn.weights, self.target_nn.weights
+        #)
         return (loss,)
