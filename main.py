@@ -140,12 +140,12 @@ def run_env(env_name, agent_class, clip_rewards=True):
         if episode % 250 == 0:
             if len(loss_tuple) == 1:
                 loss = loss_tuple[0]
-                loss_info = "Loss: {:.2f}, ".format(loss)
+                loss_info = "Loss: {:.4f}, ".format(loss)
             else:
                 actor_loss, critic_loss = loss_tuple
-                loss_info = "Actor loss: {:.2f}, ".format(
+                loss_info = "Actor loss: {:.4f}, ".format(
                     actor_loss
-                ) + "Critic loss: {:.2f} ".format(critic_loss)
+                ) + "Critic loss: {:.4f} ".format(critic_loss)
             print(
                 "Frame: {}/{}, ".format(cur_frame, num_frames)
                 + loss_info
