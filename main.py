@@ -18,7 +18,7 @@ def main():
     """Main function. It runs the different algorithms in all the environemnts.
     """
     discrete_agents = [DQN]  # , DuelingDQN, DoubleDQN, DoubleDuelingDQN]
-    discrete_envs = ATARI_ENVS[2:3]
+    discrete_envs = ATARI_ENVS[0:1]
     continuous_agents = [DDPG]
     continuous_envs = [
         "CarRacing-v0",
@@ -134,7 +134,7 @@ def run_env(env_name, agent_class, clip_rewards=True):
             continue
 
         # Print the performance of the policy.
-        if cur_frame % 100000 == 0:
+        if episode % 250 == 0:
             if len(loss_tuple) == 1:
                 loss = loss_tuple[0]
                 loss_info = "Loss: {:.2f}, ".format(loss)
