@@ -1,4 +1,5 @@
 import random
+from collections import deque
 
 import numpy as np
 import tensorflow as tf
@@ -11,26 +12,14 @@ class ReplayBuffer(object):
 
     def __init__(self, size):
         """Initializes the buffer."""
-        self.buffer = []
-        self._size = size
-        self._next_pos = 0
-
-    def __len__(self):
-        return len(self.buffer)
+        self.buffer = deque(maxlen=size)
 
     def add_to_buffer(self, state, action, reward, next_state, done):
         """Adds data to experience replay buffer."""
-        if len(self.buffer) < self._size:
-            self.buffer.append((state, action, reward, next_state, done))
-        else:
-            self.buffer[self._next_pos] = (
-                state,
-                action,
-                reward,
-                next_state,
-                done,
-            )
-        self._next_pos = (self._next_pos + 1) % self._size
+        self.buffer.append((state, action, reward, next_state, done))
+
+    def __len__(self):
+        return len(self.buffer)
 
     def sample(self, num_samples):
         """Samples num_sample elements from the buffer."""

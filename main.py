@@ -4,7 +4,7 @@ import os
 import numpy as np
 import tensorflow as tf
 import gym
-from gym.wrappers import AtariPreprocessing
+from gym.wrappers import AtariPreprocessing, FrameStack
 
 from envs import ATARI_ENVS
 from agents.ddpg import DDPG
@@ -18,7 +18,7 @@ def main():
     """Main function. It runs the different algorithms in all the environemnts.
     """
     discrete_agents = [DQN]  # , DuelingDQN, DoubleDQN, DoubleDuelingDQN]
-    discrete_envs = ATARI_ENVS[2:3]
+    discrete_envs = ATARI_ENVS[0:1]
     continuous_agents = [DDPG]
     continuous_envs = [
         "CarRacing-v0",
@@ -47,7 +47,12 @@ def evaluate_envs(envs, agents):
                 # Currently, memory growth needs to be the same across GPUs
                 for gpu in gpus:
                     tf.config.experimental.set_memory_growth(gpu, True)
-            result = run_env(env_name, agent_class, clip_rewards)
+            result = run_env(
+                env_name,
+                agent_class,
+                prioritized=False,
+                clip_rewards=clip_rewards,
+            )
             with open(
                 "results/{}_{}_ClipRew{}.csv".format(
                     agent_class.__name__, env_name, clip_rewards
@@ -58,7 +63,7 @@ def evaluate_envs(envs, agents):
                 writer.writerow(result)
 
 
-def run_env(env_name, agent_class, clip_rewards=True):
+def run_env(env_name, agent_class, prioritized=False, clip_rewards=True):
     """Runs an agent in a single environment to evaluate its performance.
     Args:
         env_name: str, name of a gym environment.
@@ -67,13 +72,20 @@ def run_env(env_name, agent_class, clip_rewards=True):
     Returns:
         result: list, the list of returns for each episode.
     """
+    print(prioritized)
     env = gym.make(env_name)
     if env_name in ATARI_ENVS:
-        env = AtariPreprocessing(env, grayscale_obs=True, scale_obs=True)
+        env = FrameStack(
+            AtariPreprocessing(env, grayscale_obs=True, scale_obs=True),
+            num_stack=4,
+        )
+
     if isinstance(env.action_space, gym.spaces.Discrete):
         num_state_feats = env.observation_space.shape
         num_actions = env.action_space.n
-        agent = agent_class(env_name, num_state_feats, num_actions)
+        agent = agent_class(
+            env_name, num_state_feats, num_actions, prioritized=prioritized
+        )
     else:
         num_state_feats = env.observation_space.shape
         num_action_feats = env.action_space.shape[0]
@@ -87,8 +99,10 @@ def run_env(env_name, agent_class, clip_rewards=True):
             max_action_values,
         )
 
-    noise = 0.1
+    noise = 1.0
     batch_size = 32
+    importances = np.array([1.0 for _ in range(batch_size)])
+    beta = 0.7
 
     num_frames = 200000000
     cur_frame, episode = 0, 0
@@ -115,15 +129,37 @@ def run_env(env_name, agent_class, clip_rewards=True):
 
             if len(agent.buffer) >= batch_size:
                 # Perform training on data sampled from the replay buffer.
-                states, actions, rewards, next_states, dones = agent.buffer.sample(
-                    batch_size
+                if prioritized:
+                    states, actions, rewards, next_states, dones, importances, indices = agent.buffer.sample(
+                        batch_size
+                    )
+                else:
+                    states, actions, rewards, next_states, dones = agent.buffer.sample(
+                        batch_size
+                    )
+                    beta = 0.0
+                loss_tuple, td_errors = agent.train_step(
+                    states,
+                    actions,
+                    rewards,
+                    next_states,
+                    dones,
+                    importances ** beta,
                 )
-                loss_tuple = agent.train_step(
-                    states, actions, rewards, next_states, dones
-                )
+                if prioritized:
+                    # Update priorities
+                    agent.buffer.update_priorities(indices, td_errors)
+
+            if cur_frame < 1e6:
+                noise -= 9e-7
+            elif cur_frame == 1e6:
+                noise = 0.1
 
             if cur_frame % 10000 == 0:
                 agent.target_nn.set_weights(agent.main_nn.get_weights())
+
+            if cur_frame % 1000000 == 0 and cur_frame > 0:
+                agent.save_checkpoint()
 
         if len(last_100_ep_ret) == 100:
             last_100_ep_ret = last_100_ep_ret[1:]
@@ -152,9 +188,8 @@ def run_env(env_name, agent_class, clip_rewards=True):
                 + "Last 100 episode return: {:.2f}, ".format(
                     np.mean(last_100_ep_ret)
                 )
+                + "Epsilon: {:.4f}".format(noise)
             )
-        if episode % 10000 == 0 and episode > 0:
-            agent.save_checkpoint()
 
         results.append(np.mean(last_100_ep_ret))
         episode += 1
