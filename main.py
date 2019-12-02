@@ -158,7 +158,7 @@ def run_env(env_name, agent_class, prioritized=False, clip_rewards=True):
             if cur_frame % 10000 == 0:
                 agent.target_nn.set_weights(agent.main_nn.get_weights())
 
-            if cur_frame % 1000000 == 0 and cur_frame > 0:
+            if cur_frame % 5000000 == 0 and cur_frame > 0:
                 agent.save_checkpoint()
 
         if len(last_100_ep_ret) == 100:
@@ -173,7 +173,7 @@ def run_env(env_name, agent_class, prioritized=False, clip_rewards=True):
             continue
 
         # Print the performance of the policy.
-        if episode % 250 == 0:
+        if episode % 200 == 0:
             if len(loss_tuple) == 1:
                 loss = loss_tuple[0]
                 loss_info = "Loss: {:.4f}, ".format(loss)

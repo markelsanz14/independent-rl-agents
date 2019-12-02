@@ -174,7 +174,7 @@ class DQN(object):
         num_state_feats,
         num_actions,
         prioritized=True,
-        lr=1e-4,
+        lr=2.5e-4,
         buffer_size=100000,
         discount=0.99,
     ):
@@ -194,10 +194,11 @@ class DQN(object):
             self.main_nn = QNetwork(num_actions)
             self.target_nn = QNetwork(num_actions)
 
-        self.optimizer = tf.keras.optimizers.Adam(
-            learning_rate=lr, clipnorm=10
+        self.optimizer = tf.keras.optimizers.RMSprop(
+            learning_rate=lr, momentum=0.95, clipnorm=10
         )
         self.loss = tf.keras.losses.Huber()
+
         # Checkpoints.
         self.ckpt_main = tf.train.Checkpoint(
             step=tf.Variable(1), optimizer=self.optimizer, net=self.main_nn
@@ -263,7 +264,7 @@ class DQN(object):
                 tau * source_weight + (1.0 - tau) * target_weight
             )
 
-    @tf.function
+    #@tf.function
     def train_step(
         self, states, actions, rewards, next_states, dones, importances
     ):
