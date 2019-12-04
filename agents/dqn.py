@@ -264,7 +264,7 @@ class DQN(object):
                 tau * source_weight + (1.0 - tau) * target_weight
             )
 
-    #@tf.function
+    @tf.function
     def train_step(
         self, states, actions, rewards, next_states, dones, importances
     ):

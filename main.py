@@ -47,20 +47,12 @@ def evaluate_envs(envs, agents):
                 # Currently, memory growth needs to be the same across GPUs
                 for gpu in gpus:
                     tf.config.experimental.set_memory_growth(gpu, True)
-            result = run_env(
+            run_env(
                 env_name,
                 agent_class,
                 prioritized=False,
                 clip_rewards=clip_rewards,
             )
-            with open(
-                "results/{}_{}_ClipRew{}.csv".format(
-                    agent_class.__name__, env_name, clip_rewards
-                ),
-                "a+",
-            ) as writeFile:
-                writer = csv.writer(writeFile)
-                writer.writerow(result)
 
 
 def run_env(env_name, agent_class, prioritized=False, clip_rewards=True):
@@ -99,6 +91,14 @@ def run_env(env_name, agent_class, prioritized=False, clip_rewards=True):
             max_action_values,
         )
 
+    # Creaete TensorBoard Metrics.
+    loss_metric = tf.keras.metrics.Mean("loss", dtype=tf.float32)
+    # return_metric = tf.keras.metrics.Mean('return', dtype=tf.float32)
+    log_dir = "logs/{}_{}_ClipRew{}".format(
+        agent_class.__name__, env_name, clip_rewards
+    )
+    summary_writer = tf.summary.create_file_writer(log_dir)
+
     noise = 1.0
     batch_size = 32
     importances = np.array([1.0 for _ in range(batch_size)])
@@ -106,7 +106,6 @@ def run_env(env_name, agent_class, prioritized=False, clip_rewards=True):
 
     num_frames = 200000000
     cur_frame, episode = 0, 0
-    last_100_ep_ret, results = [], []
 
     while cur_frame < num_frames:
         # Reset environment.
@@ -146,6 +145,7 @@ def run_env(env_name, agent_class, prioritized=False, clip_rewards=True):
                     dones,
                     importances ** beta,
                 )
+                loss_metric(loss_tuple[0])
                 if prioritized:
                     # Update priorities
                     agent.buffer.update_priorities(indices, td_errors)
@@ -161,39 +161,20 @@ def run_env(env_name, agent_class, prioritized=False, clip_rewards=True):
             if cur_frame % 5000000 == 0 and cur_frame > 0:
                 agent.save_checkpoint()
 
-        if len(last_100_ep_ret) == 100:
-            last_100_ep_ret = last_100_ep_ret[1:]
-        last_100_ep_ret.append(ep_rew)
+            # Add TensorBoard Summaries.
+            with summary_writer.as_default():
+                tf.summary.scalar("frame_num", cur_frame, step=cur_frame)
+                tf.summary.scalar("epsilon", noise, step=cur_frame)
+
+        with summary_writer.as_default():
+            tf.summary.scalar("loss", loss_metric.result(), step=episode)
+            tf.summary.scalar("return", ep_rew, step=episode)
+        loss_metric.reset_states()
 
         if episode == 0:
             print_env_info(env, env_name, agent)
 
-        # Keep collecting experience with the current policy.
-        if len(agent.buffer) < batch_size:
-            continue
-
-        # Print the performance of the policy.
-        if episode % 200 == 0:
-            if len(loss_tuple) == 1:
-                loss = loss_tuple[0]
-                loss_info = "Loss: {:.4f}, ".format(loss)
-            else:
-                actor_loss, critic_loss = loss_tuple
-                loss_info = "Actor loss: {:.4f}, ".format(
-                    actor_loss
-                ) + "Critic loss: {:.4f} ".format(critic_loss)
-            print(
-                "Frame: {}/{}, ".format(cur_frame, num_frames)
-                + loss_info
-                + "Last 100 episode return: {:.2f}, ".format(
-                    np.mean(last_100_ep_ret)
-                )
-                + "Epsilon: {:.4f}".format(noise)
-            )
-
-        results.append(np.mean(last_100_ep_ret))
         episode += 1
-    return results
 
 
 def print_env_info(env, env_name, agent):

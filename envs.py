@@ -14,7 +14,6 @@ ATARI_ENVS = [
     "CentipedeNoFrameskip-v4",
     "ChopperCommandNoFrameskip-v4",
     "CrazyClimberNoFrameskip-v4",
-    "DefenderNoFrameskip-v4",
     "DemonAttackNoFrameskip-v4",
     "DoubleDunkNoFrameskip-v4",
     "EnduroNoFrameskip-v4",
