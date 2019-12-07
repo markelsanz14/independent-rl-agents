@@ -92,8 +92,6 @@ def run_env(env_name, agent_class, prioritized=False, clip_rewards=True):
         )
 
     # Creaete TensorBoard Metrics.
-    loss_metric = tf.keras.metrics.Mean("loss", dtype=tf.float32)
-    # return_metric = tf.keras.metrics.Mean('return', dtype=tf.float32)
     log_dir = "logs/{}_{}_ClipRew{}".format(
         agent_class.__name__, env_name, clip_rewards
     )
@@ -104,7 +102,7 @@ def run_env(env_name, agent_class, prioritized=False, clip_rewards=True):
     importances = np.array([1.0 for _ in range(batch_size)])
     beta = 0.7
 
-    num_frames = 200000000
+    num_frames = 2000000
     cur_frame, episode = 0, 0
 
     while cur_frame < num_frames:
@@ -145,7 +143,6 @@ def run_env(env_name, agent_class, prioritized=False, clip_rewards=True):
                     dones,
                     importances ** beta,
                 )
-                loss_metric(loss_tuple[0])
                 if prioritized:
                     # Update priorities
                     agent.buffer.update_priorities(indices, td_errors)
@@ -162,14 +159,12 @@ def run_env(env_name, agent_class, prioritized=False, clip_rewards=True):
                 agent.save_checkpoint()
 
             # Add TensorBoard Summaries.
-            with summary_writer.as_default():
-                tf.summary.scalar("frame_num", cur_frame, step=cur_frame)
-                tf.summary.scalar("epsilon", noise, step=cur_frame)
+            if cur_frame % 500000:
+                with summary_writer.as_default():
+                    tf.summary.scalar("epsilon", noise, step=cur_frame)
 
         with summary_writer.as_default():
-            tf.summary.scalar("loss", loss_metric.result(), step=episode)
             tf.summary.scalar("return", ep_rew, step=episode)
-        loss_metric.reset_states()
 
         if episode == 0:
             print_env_info(env, env_name, agent)
