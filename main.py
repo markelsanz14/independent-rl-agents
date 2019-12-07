@@ -1,4 +1,3 @@
-import csv
 import os
 
 import numpy as np
@@ -19,6 +18,9 @@ def main():
     """
     discrete_agents = [DQN]  # , DuelingDQN, DoubleDQN, DoubleDuelingDQN]
     discrete_envs = ATARI_ENVS[0:1]
+    evaluate_envs(discrete_envs, discrete_agents)
+
+    """
     continuous_agents = [DDPG]
     continuous_envs = [
         "CarRacing-v0",
@@ -28,8 +30,8 @@ def main():
         "BipedalWalkerHardcore-v2",
         "MountainCarContinuous-v0",
     ]
-    evaluate_envs(discrete_envs, discrete_agents)
-    # evaluate_envs(continuous_envs, continuous_agents)
+    evaluate_envs(continuous_envs, continuous_agents)
+    """
 
 
 def evaluate_envs(envs, agents):
@@ -102,7 +104,7 @@ def run_env(env_name, agent_class, prioritized=False, clip_rewards=True):
     importances = np.array([1.0 for _ in range(batch_size)])
     beta = 0.7
 
-    num_frames = 2000000
+    num_frames = 100000000
     cur_frame, episode = 0, 0
 
     while cur_frame < num_frames:
@@ -110,7 +112,7 @@ def run_env(env_name, agent_class, prioritized=False, clip_rewards=True):
         state = env.reset()
         done, ep_rew = False, 0
         while not done:
-            state_in = tf.expand_dims(state, axis=0)
+            state_in = np.expand_dims(state, axis=0)
             # Sample action from policy and take that action in the env.
             action = agent.take_exploration_action(state_in, env, noise)
             next_state, reward, done, info = env.step(action)
@@ -159,7 +161,7 @@ def run_env(env_name, agent_class, prioritized=False, clip_rewards=True):
                 agent.save_checkpoint()
 
             # Add TensorBoard Summaries.
-            if cur_frame % 500000:
+            if cur_frame % 500000 == 0:
                 with summary_writer.as_default():
                     tf.summary.scalar("epsilon", noise, step=cur_frame)
 

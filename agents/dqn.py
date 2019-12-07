@@ -29,13 +29,12 @@ class ReplayBuffer(object):
         """Samples num_sample elements from the buffer."""
         batch = random.sample(self.buffer, num_samples)
         states, actions, rewards, next_states, dones = list(zip(*batch))
-        return (
-            np.array(states, dtype=np.float32),
-            np.array(actions),
-            np.array(rewards, dtype=np.float32),
-            np.array(next_states, dtype=np.float32),
-            np.array(dones, dtype=np.float32),
-        )
+        states = np.array(states)
+        actions = np.array(actions)
+        rewards = np.array(rewards, dtype=np.float32)
+        next_states = np.array(next_states)
+        dones = np.array(dones, dtype=np.float32)
+        return states, actions, rewards, next_states, dones
 
 
 class PrioritizedReplayBuffer(object):
@@ -125,6 +124,7 @@ class QNetworkConv(tf.keras.Model):
         self.dense1 = layers.Dense(512, activation="relu")
         self.out = layers.Dense(num_actions)
 
+    @tf.function
     def call(self, states):
         """Forward pass of the neural network with some inputs.
         Args:
