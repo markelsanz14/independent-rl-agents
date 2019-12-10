@@ -103,6 +103,7 @@ def run_env(env_name, agent_class, prioritized=False, clip_rewards=True):
     batch_size = 32
     importances = np.array([1.0 for _ in range(batch_size)])
     beta = 0.7
+    returns = []
 
     num_frames = 100000000
     cur_frame, episode = 0, 0
@@ -172,6 +173,21 @@ def run_env(env_name, agent_class, prioritized=False, clip_rewards=True):
             print_env_info(env, env_name, agent)
 
         episode += 1
+        returns.append(ep_rew)
+
+        if episode % 100 == 0:
+            print_result(env_name, noise, episode, cur_frame, returns)
+            returns = []
+
+
+def print_result(env_name, epsilon, episode, step, returns):
+    print("-------------------------------")
+    print("| Env: {:20s}   |".format(env_name[:-14]))
+    print("| Epsilon: {:16d}   |".format(int(epsilon*100)))
+    print("| Episode: {:16d}   |".format(episode))
+    print("| Steps: {:18d}   |".format(step))
+    print("| Last 100 return: {:8d}   |".format(int(np.mean(returns))))
+    print("-------------------------------")
 
 
 def print_env_info(env, env_name, agent):
