@@ -117,12 +117,46 @@ class QNetworkConv(tf.keras.Model):
     def __init__(self, num_actions):
         """Initializes the neural network."""
         super(QNetworkConv, self).__init__()
-        self.conv1 = layers.Conv2D(32, 8, strides=(4, 4), activation="relu")
-        self.conv2 = layers.Conv2D(64, 4, strides=(2, 2), activation="relu")
-        self.conv3 = layers.Conv2D(64, 3, strides=(1, 1), activation="relu")
+        self.conv1 = layers.Conv2D(
+            filters=32,
+            kernel_size=8,
+            strides=4,
+            activation="relu",
+            kernel_initializer=tf.keras.initializers.Orthogonal(
+                tf.math.sqrt(2.0)
+            ),
+            bias_initializer=tf.keras.initializers.Zeros(),
+        )
+        self.conv2 = layers.Conv2D(
+            filters=64,
+            kernel_size=4,
+            strides=2,
+            activation="relu",
+            kernel_initializer=tf.keras.initializers.Orthogonal(
+                tf.math.sqrt(2.0)
+            ),
+            bias_initializer=tf.keras.initializers.Zeros(),
+        )
+        self.conv3 = layers.Conv2D(
+            filters=64,
+            kernel_size=3,
+            strides=1,
+            activation="relu",
+            kernel_initializer=tf.keras.initializers.Orthogonal(
+                tf.math.sqrt(2.0)
+            ),
+            bias_initializer=tf.keras.initializers.Zeros(),
+        )
         self.flatten = layers.Flatten()
-        self.dense1 = layers.Dense(512, activation="relu")
-        self.out = layers.Dense(num_actions)
+        self.dense1 = layers.Dense(
+            units=512,
+            activation="relu",
+            kernel_initializer=tf.keras.initializers.Orthogonal(
+                tf.math.sqrt(2.0)
+            ),
+            bias_initializer=tf.keras.initializers.Zeros(),
+        )
+        self.out = layers.Dense(units=num_actions)
 
     @tf.function
     def call(self, states):
@@ -174,7 +208,7 @@ class DQN(object):
         num_state_feats,
         num_actions,
         prioritized=True,
-        lr=2.5e-4,
+        lr=1e-4,
         buffer_size=100000,
         discount=0.99,
     ):

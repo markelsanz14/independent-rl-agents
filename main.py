@@ -99,7 +99,7 @@ def run_env(env_name, agent_class, prioritized=False, clip_rewards=True):
     )
     summary_writer = tf.summary.create_file_writer(log_dir)
 
-    noise = 1.0
+    noise = 0.1
     batch_size = 32
     importances = np.array([1.0 for _ in range(batch_size)])
     beta = 0.7
@@ -150,10 +150,10 @@ def run_env(env_name, agent_class, prioritized=False, clip_rewards=True):
                     # Update priorities
                     agent.buffer.update_priorities(indices, td_errors)
 
-            if cur_frame < 1e6:
-                noise -= 9e-7
-            elif cur_frame == 1e6:
-                noise = 0.1
+            if cur_frame < 2e6:
+                noise -= 4.5e-8
+            elif cur_frame == 2e6:
+                noise = 0.01
 
             if cur_frame % 10000 == 0:
                 agent.target_nn.set_weights(agent.main_nn.get_weights())
@@ -182,11 +182,11 @@ def run_env(env_name, agent_class, prioritized=False, clip_rewards=True):
 
 def print_result(env_name, epsilon, episode, step, returns):
     print("-------------------------------")
-    print("| Env: {:20s}   |".format(env_name[:-14]))
-    print("| Epsilon: {:16d}   |".format(int(epsilon*100)))
-    print("| Episode: {:16d}   |".format(episode))
-    print("| Steps: {:18d}   |".format(step))
-    print("| Last 100 return: {:8d}   |".format(int(np.mean(returns))))
+    print("| Env: {:>20s}   |".format(env_name[:-14]))
+    print("| Exploration time %: {:>4d}%   |".format(int(epsilon * 100)))
+    print("| Episode: {:>16d}   |".format(episode))
+    print("| Steps: {:>18d}   |".format(step))
+    print("| Last 100 return: {:>8d}   |".format(int(np.mean(returns))))
     print("-------------------------------")
 
 
