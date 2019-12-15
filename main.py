@@ -1,12 +1,14 @@
 import os
+import argparse
 
 import numpy as np
 import tensorflow as tf
 import gym
-from gym.wrappers import AtariPreprocessing, FrameStack
 
 from envs import ATARI_ENVS
-from agents.ddpg import DDPG
+from atari_wrappers import make_atari, wrap_deepmind
+
+# from agents.ddpg import DDPG
 from agents.dqn import DQN
 from agents.double_dqn import DoubleDQN
 from agents.double_dueling_dqn import DoubleDuelingDQN
@@ -16,9 +18,41 @@ from agents.dueling_dqn import DuelingDQN
 def main():
     """Main function. It runs the different algorithms in all the environemnts.
     """
-    discrete_agents = [DQN]  # , DuelingDQN, DoubleDQN, DoubleDuelingDQN]
-    discrete_envs = ATARI_ENVS[0:1]
-    evaluate_envs(discrete_envs, discrete_agents)
+    parser = argparse.ArgumentParser(
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter,
+        description="Process inputs",
+    )
+
+    parser.add_argument(
+        "--env", type=str, choices=ATARI_ENVS, default="BreakoutNoFrameskip-v4"
+    )
+    parser.add_argument("--agent", type=str, choices=["DQN"], default="DQN")
+    parser.add_argument("--prioritized", type=bool, default=False)
+    parser.add_argument("--double_q", type=bool, default=False)
+    parser.add_argument("--dueling", type=bool, default=False)
+    parser.add_argument("--num_steps", type=int, default=int(1e7))
+    parser.add_argument("--clip_rewards", type=bool, default=True)
+
+    args = parser.parse_args()
+    print("Arguments received:")
+    print(args)
+    if args.agent == "DQN":
+        agent_class = DQN
+        if args.double_q:
+            if args.dueling:
+                agent_class = DoubleDuelingDQN
+            else:
+                agent_class = DoubleDQN
+        elif args.dueling:
+            agent_class = DuelingDQN
+
+    run_env(
+        env_name=args.env,
+        agent_class=agent_class,
+        prioritized=args.prioritized,
+        clip_rewards=args.clip_rewards,
+        num_steps=args.num_steps,
+    )
 
     """
     continuous_agents = [DDPG]
@@ -30,55 +64,53 @@ def main():
         "BipedalWalkerHardcore-v2",
         "MountainCarContinuous-v0",
     ]
-    evaluate_envs(continuous_envs, continuous_agents)
     """
 
 
-def evaluate_envs(envs, agents):
-    """Runs all the environments with all the agents paseed in the lists.
-    Args:
-        envs: list, a list of gym environemnt names.
-        agents: list, a list of agent classes.
-    """
-    clip_rewards = True
-    for agent_class in agents:
-        for env_name in envs:
-            os.environ["CUDA_VISIBLE_DEVICES"] = "2"
-            gpus = tf.config.experimental.list_physical_devices("GPU")
-            if gpus:
-                # Currently, memory growth needs to be the same across GPUs
-                for gpu in gpus:
-                    tf.config.experimental.set_memory_growth(gpu, True)
-            run_env(
-                env_name,
-                agent_class,
-                prioritized=False,
-                clip_rewards=clip_rewards,
-            )
-
-
-def run_env(env_name, agent_class, prioritized=False, clip_rewards=True):
+def run_env(
+    env_name,
+    agent_class,
+    prioritized=False,
+    prioritization_alpha=0.6,
+    clip_rewards=True,
+    num_steps=int(1e6),
+    batch_size=32,
+    initial_exploration=1.0,
+    learning_starts=int(1e4),
+    train_freq=4,
+    target_update_freq=int(1e4),
+    save_ckpt_freq=int(1e6),
+):
     """Runs an agent in a single environment to evaluate its performance.
     Args:
         env_name: str, name of a gym environment.
         agent_class: class object, one of the agents in the agent directory.
+        prioritized: bool, whether to use prioritized experience replay.
         clip_rewards: bool, whether to clip the rewards to {-1, 0, 1} or not.
-    Returns:
-        result: list, the list of returns for each episode.
     """
-    print(prioritized)
-    env = gym.make(env_name)
+    os.environ["CUDA_VISIBLE_DEVICES"] = "0"
+    gpus = tf.config.experimental.list_physical_devices("GPU")
+    if gpus:
+        for gpu in gpus:
+            tf.config.experimental.set_memory_growth(gpu, True)
+
     if env_name in ATARI_ENVS:
-        env = FrameStack(
-            AtariPreprocessing(env, grayscale_obs=True, scale_obs=True),
-            num_stack=4,
+        env = make_atari(env_name)
+        env = wrap_deepmind(
+            env, frame_stack=True, scale=False, clip_rewards=clip_rewards
         )
+    else:
+        env = gym.make(env_name)
 
     if isinstance(env.action_space, gym.spaces.Discrete):
         num_state_feats = env.observation_space.shape
         num_actions = env.action_space.n
         agent = agent_class(
-            env_name, num_state_feats, num_actions, prioritized=prioritized
+            env_name,
+            num_state_feats,
+            num_actions,
+            prioritized=prioritized,
+            prioritization_alpha=prioritization_alpha,
         )
     else:
         num_state_feats = env.observation_space.shape
@@ -93,84 +125,74 @@ def run_env(env_name, agent_class, prioritized=False, clip_rewards=True):
             max_action_values,
         )
 
+    print_env_info(env, env_name, agent)
+
     # Creaete TensorBoard Metrics.
     log_dir = "logs/{}_{}_ClipRew{}".format(
         agent_class.__name__, env_name, clip_rewards
     )
     summary_writer = tf.summary.create_file_writer(log_dir)
 
-    noise = 0.1
-    batch_size = 32
-    importances = np.array([1.0 for _ in range(batch_size)])
+    imp = np.array([1.0 for _ in range(batch_size)])
     beta = 0.7
-    returns = []
 
-    num_frames = 100000000
+    noise = initial_exploration
+    returns = []
     cur_frame, episode = 0, 0
 
-    while cur_frame < num_frames:
-        # Reset environment.
+    # Start learning!
+    while cur_frame < num_steps:
         state = env.reset()
         done, ep_rew = False, 0
+        # Start an episode.
         while not done:
-            state_in = np.expand_dims(state, axis=0)
+            state_in = np.array(
+                np.expand_dims(state, axis=0), dtype=np.float32
+            )
             # Sample action from policy and take that action in the env.
             action = agent.take_exploration_action(state_in, env, noise)
             next_state, reward, done, info = env.step(action)
+            agent.buffer.add_to_buffer(state, action, reward, next_state, done)
             cur_frame += 1
             ep_rew += reward
-            if clip_rewards:
-                if reward < 0:
-                    reward = -1.0
-                elif reward > 0:
-                    reward = 1.0
-            agent.buffer.add_to_buffer(state, action, reward, next_state, done)
             state = next_state
 
-            if len(agent.buffer) >= batch_size:
+            if cur_frame > learning_starts and cur_frame % train_freq == 0:
                 # Perform training on data sampled from the replay buffer.
                 if prioritized:
-                    states, actions, rewards, next_states, dones, importances, indices = agent.buffer.sample(
+                    st, act, rew, next_st, d, imp, indx = agent.buffer.sample(
                         batch_size
                     )
                 else:
-                    states, actions, rewards, next_states, dones = agent.buffer.sample(
-                        batch_size
-                    )
+                    st, act, rew, next_st, d = agent.buffer.sample(batch_size)
                     beta = 0.0
                 loss_tuple, td_errors = agent.train_step(
-                    states,
-                    actions,
-                    rewards,
-                    next_states,
-                    dones,
-                    importances ** beta,
+                    st, act, rew, next_st, d, imp ** beta
                 )
                 if prioritized:
                     # Update priorities
-                    agent.buffer.update_priorities(indices, td_errors)
+                    agent.buffer.update_priorities(indx, td_errors)
 
-            if cur_frame < 2e6:
-                noise -= 4.5e-8
-            elif cur_frame == 2e6:
-                noise = 0.01
+            # Update value of the exploration value epsilon.
+            noise = update_noise(noise, cur_frame)
 
-            if cur_frame % 10000 == 0:
+            if (
+                cur_frame % target_update_freq == 0
+                and cur_frame > learning_starts
+            ):
+                # Copy weights from main to target network.
                 agent.target_nn.set_weights(agent.main_nn.get_weights())
 
-            if cur_frame % 5000000 == 0 and cur_frame > 0:
+            if cur_frame % save_ckpt_freq == 0 and cur_frame > learning_starts:
                 agent.save_checkpoint()
 
             # Add TensorBoard Summaries.
-            if cur_frame % 500000 == 0:
+            if cur_frame % 100000 == 0:
                 with summary_writer.as_default():
                     tf.summary.scalar("epsilon", noise, step=cur_frame)
 
         with summary_writer.as_default():
             tf.summary.scalar("return", ep_rew, step=episode)
-
-        if episode == 0:
-            print_env_info(env, env_name, agent)
 
         episode += 1
         returns.append(ep_rew)
@@ -180,13 +202,21 @@ def run_env(env_name, agent_class, prioritized=False, clip_rewards=True):
             returns = []
 
 
+def update_noise(noise, step):
+    if step < 1e6:
+        noise -= 9e-7
+    elif step == 1e6:
+        noise = 0.01
+    return noise
+
+
 def print_result(env_name, epsilon, episode, step, returns):
     print("-------------------------------")
     print("| Env: {:>20s}   |".format(env_name[:-14]))
     print("| Exploration time %: {:>4d}%   |".format(int(epsilon * 100)))
     print("| Episode: {:>16d}   |".format(episode))
     print("| Steps: {:>18d}   |".format(step))
-    print("| Last 100 return: {:>8d}   |".format(int(np.mean(returns))))
+    print("| Last 100 return: {:>8.2f}   |".format(np.mean(returns)))
     print("-------------------------------")
 
 

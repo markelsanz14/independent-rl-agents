@@ -29,11 +29,11 @@ class ReplayBuffer(object):
         """Samples num_sample elements from the buffer."""
         batch = random.sample(self.buffer, num_samples)
         states, actions, rewards, next_states, dones = list(zip(*batch))
-        states = np.array(states)
-        actions = np.array(actions)
-        rewards = np.array(rewards, dtype=np.float32)
-        next_states = np.array(next_states)
-        dones = np.array(dones, dtype=np.float32)
+        states = np.array(states, copy=False, dtype=np.float32)
+        actions = np.array(actions, copy=False)
+        rewards = np.array(rewards, copy=False, dtype=np.float32)
+        next_states = np.array(next_states, copy=False, dtype=np.float32)
+        dones = np.array(dones, copy=False, dtype=np.float32)
         return states, actions, rewards, next_states, dones
 
 
@@ -167,7 +167,6 @@ class QNetworkConv(tf.keras.Model):
             qs: tf.Tensor, the q-values of the given state for all possible
                 actions.
         """
-        states = tf.reshape(states, (-1, 84, 84, 4))
         x = self.conv1(states)
         x = self.conv2(x)
         x = self.conv3(x)
@@ -207,9 +206,10 @@ class DQN(object):
         env_name,
         num_state_feats,
         num_actions,
-        prioritized=True,
+        prioritized=False,
+        prioritization_alpha=0.6,
         lr=1e-4,
-        buffer_size=100000,
+        buffer_size=10000,
         discount=0.99,
     ):
         """Initializes the class."""
@@ -217,7 +217,9 @@ class DQN(object):
         self.num_actions = num_actions
         self.discount = discount
         if prioritized:
-            self.buffer = PrioritizedReplayBuffer(buffer_size)
+            self.buffer = PrioritizedReplayBuffer(
+                size=buffer_size, alpha=prioritization_alpha
+            )
         else:
             self.buffer = ReplayBuffer(buffer_size)
 
@@ -228,8 +230,8 @@ class DQN(object):
             self.main_nn = QNetwork(num_actions)
             self.target_nn = QNetwork(num_actions)
 
-        self.optimizer = tf.keras.optimizers.RMSprop(
-            learning_rate=lr, momentum=0.95, clipnorm=10
+        self.optimizer = tf.keras.optimizers.Adam(
+            learning_rate=lr, clipnorm=10
         )
         self.loss = tf.keras.losses.Huber()
 
@@ -316,7 +318,9 @@ class DQN(object):
             action_masks = tf.one_hot(actions, self.num_actions)
             masked_qs = tf.reduce_sum(action_masks * qs, axis=-1)
             td_errors = target - masked_qs
-            loss = self.loss(target, masked_qs, sample_weight=importances)
+            loss = self.loss(
+                tf.stop_gradient(target), masked_qs
+            )  # , sample_weight=importances)
         grads = tape.gradient(loss, self.main_nn.trainable_variables)
         self.optimizer.apply_gradients(
             zip(grads, self.main_nn.trainable_variables)
