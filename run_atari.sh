@@ -1,1 +1,1 @@
-python main.py --env=PongNoFrameskip-v4 --agent=DQN --num_steps=10000000
+python main.py --env=BreakoutNoFrameskip-v4 --agent=DQN --num_steps=10000000

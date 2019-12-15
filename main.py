@@ -206,7 +206,7 @@ def update_noise(noise, step):
     if step < 1e6:
         noise -= 9e-7
     elif step == 1e6:
-        noise = 0.01
+        noise = 0.1
     return noise
 
 
