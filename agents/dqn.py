@@ -244,7 +244,7 @@ class DQN(object):
             "./saved_models/DQN-{}".format(env_name),
             max_to_keep=3,
         )
-        self.ckpt_main.restore(self.manager_main.latest_checkpoint)
+        self.ckpt_main.restore(self.manager_main.latest_checkpoint).expect_partial()
         if self.manager_main.latest_checkpoint:
             print(
                 "Restored from {}".format(self.manager_main.latest_checkpoint)
