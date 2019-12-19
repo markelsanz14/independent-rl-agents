@@ -136,7 +136,7 @@ def run_env(
     imp = np.array([1.0 for _ in range(batch_size)])
     beta = 0.7
 
-    noise = initial_exploration
+    epsilon = initial_exploration
     returns = []
     cur_frame, episode = 0, 0
 
@@ -150,7 +150,7 @@ def run_env(
                 np.expand_dims(state, axis=0), dtype=np.float32
             )
             # Sample action from policy and take that action in the env.
-            action = agent.take_exploration_action(state_in, env, noise)
+            action = agent.take_exploration_action(state_in, env, epsilon)
             next_state, reward, done, info = env.step(action)
             agent.buffer.add_to_buffer(state, action, reward, next_state, done)
             cur_frame += 1
@@ -174,7 +174,7 @@ def run_env(
                     agent.buffer.update_priorities(indx, td_errors)
 
             # Update value of the exploration value epsilon.
-            noise = update_noise(noise, cur_frame)
+            epsilon = decay_epsilon(epsilon, cur_frame)
 
             if (
                 cur_frame % target_update_freq == 0
@@ -189,7 +189,7 @@ def run_env(
             # Add TensorBoard Summaries.
             if cur_frame % 100000 == 0:
                 with summary_writer.as_default():
-                    tf.summary.scalar("epsilon", noise, step=cur_frame)
+                    tf.summary.scalar("epsilon", epsilon, step=cur_frame)
 
         with summary_writer.as_default():
             tf.summary.scalar("return", ep_rew, step=episode)
@@ -198,16 +198,16 @@ def run_env(
         returns.append(ep_rew)
 
         if episode % 100 == 0:
-            print_result(env_name, noise, episode, cur_frame, returns)
+            print_result(env_name, epsilon, episode, cur_frame, returns)
             returns = []
 
 
-def update_noise(noise, step):
+def decay_epsilon(epsilon, step):
     if step < 1e6:
-        noise -= 9e-7
+        epsilon -= 9e-7
     elif step == 1e6:
-        noise = 0.1
-    return noise
+        epsilon = 0.1
+    return epsilon
 
 
 def print_result(env_name, epsilon, episode, step, returns):

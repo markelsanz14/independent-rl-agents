@@ -57,7 +57,6 @@ class QNetworkConv(tf.keras.Model):
             qs: tf.Tensor, the q-values of the given state for all possible
                 actions.
         """
-        states = tf.reshape(states, (-1, 84, 84, 4))
         x = self.conv1(states)
         x = self.conv2(x)
         x = self.conv3(x)
@@ -97,8 +96,8 @@ class DoubleDQN(object):
         env_name,
         num_state_feats,
         num_actions,
-        lr=2.5e-4,
-        buffer_size=100000,
+        lr=1e-4,
+        buffer_size=10000,
         discount=0.99,
     ):
         self.num_state_feats = num_state_feats
@@ -113,10 +112,10 @@ class DoubleDQN(object):
             self.main_nn = QNetwork(num_actions)
             self.target_nn = QNetwork(num_actions)
 
-        self.optimizer = tf.keras.optimizers.RMSprop(
-            learning_rate=lr, momentum=0.95, clipnorm=10
+        self.optimizer = tf.keras.optimizers.Adam(
+            learning_rate=lr, clipnorm=10
         )
-        self.loss = tf.keras.losses.MeanSquaredError()
+        self.loss = tf.keras.losses.Huber()
 
         # Checkpoints.
         self.ckpt_main = tf.train.Checkpoint(
@@ -127,7 +126,9 @@ class DoubleDQN(object):
             "./saved_models/DoubleDQN-{}".format(env_name),
             max_to_keep=3,
         )
-        self.ckpt_main.restore(self.manager_main.latest_checkpoint)
+        self.ckpt_main.restore(
+            self.manager_main.latest_checkpoint
+        ).expect_partial()
         if self.manager_main.latest_checkpoint:
             print(
                 "Restored from {}".format(self.manager_main.latest_checkpoint)
@@ -168,7 +169,7 @@ class DoubleDQN(object):
 
     def update_target_network(self, source_weights, target_weights, tau=0.001):
         """Updates target network copying the weights from the source to the
-        target.
+        target using Polyak averaging.
         Args:
             source_weights: list, a list of the NN weights resulting of running
                 nn.weights on keras. Weights to be copied from.

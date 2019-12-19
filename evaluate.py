@@ -86,10 +86,7 @@ def evaluate_env(
         num_state_feats = env.observation_space.shape
         num_actions = env.action_space.n
         agent = agent_class(
-            env_name,
-            num_state_feats,
-            num_actions,
-            prioritized=prioritized,
+            env_name, num_state_feats, num_actions, prioritized=prioritized
         )
     else:
         num_state_feats = env.observation_space.shape
@@ -120,7 +117,7 @@ def evaluate_env(
             ep_rew += reward
 
         returns.append(ep_rew)
-        print('Epiosde {} return: {}'.format(episode, ep_rew))
+        print("Epiosde {} return: {}".format(episode, ep_rew))
 
     print_result(env_name, returns)
     returns = []
@@ -133,7 +130,6 @@ def print_result(env_name, returns):
     print("| Num episodes: {:>11d}   |".format(len(returns)))
     print("| Average return: {:>9.2f}   |".format(np.mean(returns)))
     print("-------------------------------")
-
 
 
 if __name__ == "__main__":

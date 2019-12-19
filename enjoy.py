@@ -86,10 +86,7 @@ def enjoy_env(
         num_state_feats = env.observation_space.shape
         num_actions = env.action_space.n
         agent = agent_class(
-            env_name,
-            num_state_feats,
-            num_actions,
-            prioritized=prioritized,
+            env_name, num_state_feats, num_actions, prioritized=prioritized
         )
     else:
         num_state_feats = env.observation_space.shape
@@ -118,7 +115,7 @@ def enjoy_env(
             state = next_state
             ep_rew += reward
 
-        print('Epiosde {} return: {}'.format(episode, ep_rew))
+        print("Epiosde {} return: {}".format(episode, ep_rew))
 
 
 if __name__ == "__main__":

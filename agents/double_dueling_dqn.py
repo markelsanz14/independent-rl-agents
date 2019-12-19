@@ -107,8 +107,8 @@ class DoubleDuelingDQN(object):
         env_name,
         num_state_feats,
         num_actions,
-        lr=2.5e-4,
-        buffer_size=100000,
+        lr=1e-4,
+        buffer_size=10000,
         discount=0.99,
     ):
         self.num_state_feats = num_state_feats
@@ -123,10 +123,10 @@ class DoubleDuelingDQN(object):
             self.main_nn = QNetwork(num_actions)
             self.target_nn = QNetwork(num_actions)
 
-        self.optimizer = tf.keras.optimizers.RMSprop(
-            learning_rate=lr, momentum=0.95, clipnorm=10
+        self.optimizer = tf.keras.optimizers.Adam(
+            learning_rate=lr, clipnorm=10
         )
-        self.loss = tf.keras.losses.MeanSquaredError()
+        self.loss = tf.keras.losses.Huber()
 
         # Checkpoints.
         self.ckpt_main = tf.train.Checkpoint(
@@ -137,7 +137,9 @@ class DoubleDuelingDQN(object):
             "./saved_models/DoubleDuelingDQN-{}".format(env_name),
             max_to_keep=3,
         )
-        self.ckpt_main.restore(self.manager_main.latest_checkpoint)
+        self.ckpt_main.restore(
+            self.manager_main.latest_checkpoint
+        ).expect_partial()
         if self.manager_main.latest_checkpoint:
             print(
                 "Restored from {}".format(self.manager_main.latest_checkpoint)
