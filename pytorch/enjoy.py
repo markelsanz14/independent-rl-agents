@@ -2,7 +2,7 @@ import os
 import argparse
 
 import numpy as np
-import tensorflow as tf
+import torch
 import gym
 
 from envs import ATARI_ENVS
@@ -30,8 +30,8 @@ def main():
     parser.add_argument("--prioritized", type=bool, default=False)
     parser.add_argument("--double_q", type=bool, default=False)
     parser.add_argument("--dueling", type=bool, default=False)
-    parser.add_argument("--num_episodes", type=int, default=20)
-    parser.add_argument("--clip_rewards", type=bool, default=True)
+    parser.add_argument("--clip_rewards", type=bool, default=False)
+    parser.add_argument("--num_episodes", type=int, default=10)
 
     args = parser.parse_args()
     print("Arguments received:")
@@ -46,14 +46,14 @@ def main():
         elif args.dueling:
             agent_class = DuelingDQN
 
-    evaluate_env(
+    enjoy_env(
         env_name=args.env,
         agent_class=agent_class,
         num_episodes=args.num_episodes,
     )
 
 
-def evaluate_env(
+def enjoy_env(
     env_name,
     agent_class,
     epsilon=0.01,
@@ -68,12 +68,6 @@ def evaluate_env(
         prioritized: bool, whether to use prioritized experience replay.
         clip_rewards: bool, whether to clip the rewards to {-1, 0, 1} or not.
     """
-    os.environ["CUDA_VISIBLE_DEVICES"] = "0"
-    gpus = tf.config.experimental.list_physical_devices("GPU")
-    if gpus:
-        for gpu in gpus:
-            tf.config.experimental.set_memory_growth(gpu, True)
-
     if env_name in ATARI_ENVS:
         env = make_atari(env_name)
         env = wrap_deepmind(
@@ -101,35 +95,21 @@ def evaluate_env(
             max_action_values,
         )
 
-    returns = []
-    episode = 0
     for episode in range(num_episodes):
         state = env.reset()
         done, ep_rew = False, 0
         while not done:
-            state_in = np.array(
-                np.expand_dims(state, axis=0), dtype=np.float32
-            )
+            env.render()
+            state_in = torch.tensor(
+                np.expand_dims(state, axis=0), dtype=torch.float32
+            ).transpose(1, 3)
             # Sample action from policy and take that action in the env.
             action = agent.take_exploration_action(state_in, env, epsilon)
             next_state, reward, done, info = env.step(action)
             state = next_state
             ep_rew += reward
 
-        returns.append(ep_rew)
         print("Epiosde {} return: {}".format(episode, ep_rew))
-
-    print_result(env_name, returns)
-    returns = []
-
-
-def print_result(env_name, returns):
-    print("-------------------------------")
-    print("| FINAL RESULT:               |")
-    print("| Env: {:>20s}   |".format(env_name[:-14]))
-    print("| Num episodes: {:>11d}   |".format(len(returns)))
-    print("| Average return: {:>9.2f}   |".format(np.mean(returns)))
-    print("-------------------------------")
 
 
 if __name__ == "__main__":

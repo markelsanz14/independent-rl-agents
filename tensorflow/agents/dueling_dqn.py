@@ -53,7 +53,6 @@ class QNetworkConv(tf.keras.Model):
         self.dense1 = layers.Dense(512, activation="relu")
         self.V = layers.Dense(1)
         self.A = layers.Dense(num_actions)
-        self.Q = layers.Dense(num_actions)
 
     def call(self, states):
         """Forward pass of the neural network with some inputs.
@@ -85,7 +84,6 @@ class QNetwork(tf.keras.Model):
         self.dense2 = layers.Dense(32, activation="relu")
         self.V = layers.Dense(1)
         self.A = layers.Dense(num_actions)
-        self.Q = layers.Dense(num_actions)
 
     def call(self, states):
         """Forward pass of the neural network with some inputs.

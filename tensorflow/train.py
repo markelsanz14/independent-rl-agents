@@ -76,6 +76,8 @@ def run_env(
     num_steps=int(1e6),
     batch_size=32,
     initial_exploration=1.0,
+    final_exploration=0.1,
+    exploration_steps=int(1e6),
     learning_starts=int(1e4),
     train_freq=4,
     target_update_freq=int(1e4),
@@ -174,7 +176,13 @@ def run_env(
                     agent.buffer.update_priorities(indx, td_errors)
 
             # Update value of the exploration value epsilon.
-            epsilon = decay_epsilon(epsilon, cur_frame)
+            epsilon = decay_epsilon(
+                epsilon,
+                cur_frame,
+                initial_exploration,
+                final_exploration,
+                exploration_steps,
+            )
 
             if (
                 cur_frame % target_update_freq == 0
@@ -202,11 +210,9 @@ def run_env(
             returns = []
 
 
-def decay_epsilon(epsilon, step):
-    if step < 1e6:
-        epsilon -= 9e-7
-    elif step == 1e6:
-        epsilon = 0.1
+def decay_epsilon(epsilon, step, initial_exp, final_exp, exp_steps):
+    if step < exp_steps:
+        epsilon -= (initial_exp - final_exp) / float(exp_steps)
     return epsilon
 
 

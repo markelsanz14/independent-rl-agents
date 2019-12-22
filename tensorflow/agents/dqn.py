@@ -209,7 +209,7 @@ class DQN(object):
         prioritized=False,
         prioritization_alpha=0.6,
         lr=1e-4,
-        buffer_size=10000,
+        buffer_size=100000,
         discount=0.99,
     ):
         """Initializes the class."""
@@ -284,23 +284,6 @@ class DQN(object):
         else:
             q = self.run_main_nn(state).numpy()
             return np.argmax(q)  # Greedy action for state
-
-    def update_target_network(self, source_weights, target_weights, tau=0.001):
-        """Updates target network copying the weights from the source to the
-        target.
-        Args:
-            source_weights: list, a list of the NN weights resulting of running
-                nn.weights on keras. Weights to be copied from.
-            target_weights: list, a list of the NN weights resulting of running
-                nn.weights on keras. Weights to be copied to.
-            tau: float, value in range [0, 1] for the polyak averaging value.
-        """
-        for source_weight, target_weight in zip(
-            source_weights, target_weights
-        ):
-            target_weight.assign(
-                tau * source_weight + (1.0 - tau) * target_weight
-            )
 
     @tf.function
     def train_step(
