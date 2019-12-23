@@ -66,4 +66,5 @@ python train.py -h
 where train.py is the file you want to see the help for.
 
 ### Results:
-
+To see the performance achieved with each algorithm in the different environments
+[go to the results section.](https://github.com/markelsanz14/independent-rl-agents/tree/master/results)
