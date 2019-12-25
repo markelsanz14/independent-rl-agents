@@ -76,8 +76,8 @@ def run_env(
     num_steps=int(1e6),
     batch_size=32,
     initial_exploration=1.0,
-    final_exploration=0.1,
-    exploration_steps=int(1e6),
+    final_exploration=0.02,
+    exploration_steps=int(2e6),
     learning_starts=int(1e4),
     train_freq=4,
     target_update_freq=int(1e4),
@@ -99,7 +99,7 @@ def run_env(
     if env_name in ATARI_ENVS:
         env = make_atari(env_name)
         env = wrap_deepmind(
-            env, frame_stack=True, scale=False, clip_rewards=clip_rewards
+            env, frame_stack=True, scale=False, clip_rewards=False
         )
     else:
         env = gym.make(env_name)
@@ -139,13 +139,13 @@ def run_env(
     beta = 0.7
 
     epsilon = initial_exploration
-    returns = []
+    returns, clipped_returns = [], []
     cur_frame, episode = 0, 0
 
     # Start learning!
     while cur_frame < num_steps:
         state = env.reset()
-        done, ep_rew = False, 0
+        done, ep_rew, clipped_ep_rew = False, 0, 0
         # Start an episode.
         while not done:
             state_in = np.array(
@@ -154,9 +154,12 @@ def run_env(
             # Sample action from policy and take that action in the env.
             action = agent.take_exploration_action(state_in, env, epsilon)
             next_state, reward, done, info = env.step(action)
-            agent.buffer.add_to_buffer(state, action, reward, next_state, done)
+            clipped_reward = np.sign(reward)
+            rew = clipped_reward if clip_rewards else reward
+            agent.buffer.add_to_buffer(state, action, rew, next_state, done)
             cur_frame += 1
             ep_rew += reward
+            clipped_ep_rew += clipped_reward
             state = next_state
 
             if cur_frame > learning_starts and cur_frame % train_freq == 0:
@@ -200,14 +203,19 @@ def run_env(
                     tf.summary.scalar("epsilon", epsilon, step=cur_frame)
 
         with summary_writer.as_default():
+            tf.summary.scalar("clipped_return", clipped_ep_rew, step=episode)
             tf.summary.scalar("return", ep_rew, step=episode)
 
         episode += 1
         returns.append(ep_rew)
+        clipped_returns.append(clipped_ep_rew)
 
         if episode % 100 == 0:
-            print_result(env_name, epsilon, episode, cur_frame, returns)
+            print_result(
+                env_name, epsilon, episode, cur_frame, returns, clipped_returns
+            )
             returns = []
+            clipped_returns = []
 
 
 def decay_epsilon(epsilon, step, initial_exp, final_exp, exp_steps):
@@ -216,14 +224,17 @@ def decay_epsilon(epsilon, step, initial_exp, final_exp, exp_steps):
     return epsilon
 
 
-def print_result(env_name, epsilon, episode, step, returns):
-    print("-------------------------------")
-    print("| Env: {:>20s}   |".format(env_name[:-14]))
-    print("| Exploration time %: {:>4d}%   |".format(int(epsilon * 100)))
-    print("| Episode: {:>16d}   |".format(episode))
-    print("| Steps: {:>18d}   |".format(step))
-    print("| Last 100 return: {:>8.2f}   |".format(np.mean(returns)))
-    print("-------------------------------")
+def print_result(env_name, epsilon, episode, step, returns, clipped_returns):
+    print("----------------------------------")
+    print("| Env: {:>23s}   |".format(env_name[:-14]))
+    print("| Exploration time %: {:>7d}%   |".format(int(epsilon * 100)))
+    print("| Episode: {:>19d}   |".format(episode))
+    print("| Steps: {:>21d}   |".format(step))
+    print("| Last 100 return: {:>11.2f}   |".format(np.mean(returns)))
+    print(
+        "| Clipped 100 return: {:>8.2f}   |".format(np.mean(clipped_returns))
+    )
+    print("----------------------------------")
 
 
 def print_env_info(env, env_name, agent):

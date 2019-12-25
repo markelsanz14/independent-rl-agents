@@ -56,7 +56,7 @@ def main():
 def evaluate_env(
     env_name,
     agent_class,
-    epsilon=0.01,
+    epsilon=0.1,
     prioritized=False,
     clip_rewards=False,
     num_episodes=20,
