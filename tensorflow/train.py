@@ -79,8 +79,8 @@ def run_env(
     final_exploration=0.02,
     exploration_steps=int(2e6),
     learning_starts=int(1e4),
-    train_freq=4,
-    target_update_freq=int(1e4),
+    train_freq=1,
+    target_update_freq=int(1e5),
     save_ckpt_freq=int(1e6),
 ):
     """Runs an agent in a single environment to evaluate its performance.
@@ -99,7 +99,7 @@ def run_env(
     if env_name in ATARI_ENVS:
         env = make_atari(env_name)
         env = wrap_deepmind(
-            env, frame_stack=True, scale=False, clip_rewards=False
+            env, frame_stack=True, scale=True, clip_rewards=False
         )
     else:
         env = gym.make(env_name)

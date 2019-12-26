@@ -122,9 +122,7 @@ class QNetworkConv(tf.keras.Model):
             kernel_size=8,
             strides=4,
             activation="relu",
-            kernel_initializer=tf.keras.initializers.Orthogonal(
-                tf.math.sqrt(2.0)
-            ),
+            kernel_initializer=tf.keras.initializers.VarianceScaling(2.0),
             bias_initializer=tf.keras.initializers.Zeros(),
         )
         self.conv2 = layers.Conv2D(
@@ -132,9 +130,7 @@ class QNetworkConv(tf.keras.Model):
             kernel_size=4,
             strides=2,
             activation="relu",
-            kernel_initializer=tf.keras.initializers.Orthogonal(
-                tf.math.sqrt(2.0)
-            ),
+            kernel_initializer=tf.keras.initializers.VarianceScaling(2.0),
             bias_initializer=tf.keras.initializers.Zeros(),
         )
         self.conv3 = layers.Conv2D(
@@ -142,18 +138,14 @@ class QNetworkConv(tf.keras.Model):
             kernel_size=3,
             strides=1,
             activation="relu",
-            kernel_initializer=tf.keras.initializers.Orthogonal(
-                tf.math.sqrt(2.0)
-            ),
+            kernel_initializer=tf.keras.initializers.VarianceScaling(2.0),
             bias_initializer=tf.keras.initializers.Zeros(),
         )
         self.flatten = layers.Flatten()
         self.dense1 = layers.Dense(
             units=512,
             activation="relu",
-            kernel_initializer=tf.keras.initializers.Orthogonal(
-                tf.math.sqrt(2.0)
-            ),
+            kernel_initializer=tf.keras.initializers.VarianceScaling(2.0),
             bias_initializer=tf.keras.initializers.Zeros(),
         )
         self.out = layers.Dense(units=num_actions)
@@ -208,7 +200,7 @@ class DQN(object):
         num_actions,
         prioritized=False,
         prioritization_alpha=0.6,
-        lr=1e-4,
+        lr=1e-5,
         buffer_size=100000,
         discount=0.99,
     ):

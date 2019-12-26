@@ -77,7 +77,7 @@ def enjoy_env(
     if env_name in ATARI_ENVS:
         env = make_atari(env_name)
         env = wrap_deepmind(
-            env, frame_stack=True, scale=False, clip_rewards=clip_rewards
+            env, frame_stack=True, scale=True, clip_rewards=clip_rewards
         )
     else:
         env = gym.make(env_name)
