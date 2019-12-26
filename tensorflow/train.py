@@ -73,6 +73,7 @@ def run_env(
     prioritized=False,
     prioritization_alpha=0.6,
     clip_rewards=True,
+    normalize_obs=True,
     num_steps=int(1e6),
     batch_size=32,
     initial_exploration=1.0,
@@ -99,7 +100,7 @@ def run_env(
     if env_name in ATARI_ENVS:
         env = make_atari(env_name)
         env = wrap_deepmind(
-            env, frame_stack=True, scale=True, clip_rewards=False
+            env, frame_stack=True, scale=False, clip_rewards=False
         )
     else:
         env = gym.make(env_name)
@@ -152,6 +153,8 @@ def run_env(
                 np.expand_dims(state, axis=0), dtype=np.float32
             )
             # Sample action from policy and take that action in the env.
+            if normalize_obs:
+                state_in = state_in / 255.
             action = agent.take_exploration_action(state_in, env, epsilon)
             next_state, reward, done, info = env.step(action)
             clipped_reward = np.sign(reward)
@@ -171,6 +174,8 @@ def run_env(
                 else:
                     st, act, rew, next_st, d = agent.buffer.sample(batch_size)
                     beta = 0.0
+                if normalize_obs:
+                    st, next_st = st / 255., next_st / 255.
                 loss_tuple, td_errors = agent.train_step(
                     st, act, rew, next_st, d, imp ** beta
                 )
