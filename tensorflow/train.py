@@ -4,6 +4,7 @@ import argparse
 import numpy as np
 import tensorflow as tf
 import gym
+import wandb
 
 from envs import ATARI_ENVS
 from atari_wrappers import make_atari, wrap_deepmind
@@ -18,6 +19,7 @@ from agents.dueling_dqn import DuelingDQN
 def main():
     """Main function. It runs the different algorithms in all the environemnts.
     """
+    wandb.init(sync_tensorboard=True, project="tf-rl")
     parser = argparse.ArgumentParser(
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
         description="Process inputs",
