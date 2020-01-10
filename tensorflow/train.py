@@ -1,4 +1,5 @@
 import os
+import time
 import argparse
 
 import numpy as np
@@ -19,7 +20,7 @@ from agents.dueling_dqn import DuelingDQN
 def main():
     """Main function. It runs the different algorithms in all the environemnts.
     """
-    wandb.init(sync_tensorboard=True, project="tf-rl")
+    #wandb.init(sync_tensorboard=True, project="tf-rl")
     parser = argparse.ArgumentParser(
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
         description="Process inputs",
@@ -68,7 +69,6 @@ def main():
     ]
     """
 
-
 def run_env(
     env_name,
     agent_class,
@@ -79,9 +79,9 @@ def run_env(
     num_steps=int(1e6),
     batch_size=32,
     initial_exploration=1.0,
-    final_exploration=0.02,
+    final_exploration=0.01,
     exploration_steps=int(2e6),
-    learning_starts=int(1e4),
+    learning_starts=40,#int(1e4),
     train_freq=1,
     target_update_freq=int(1e5),
     save_ckpt_freq=int(1e6),
@@ -116,6 +116,7 @@ def run_env(
             num_actions,
             prioritized=prioritized,
             prioritization_alpha=prioritization_alpha,
+            normalize_obs=normalize_obs,
         )
     else:
         num_state_feats = env.observation_space.shape
@@ -132,11 +133,21 @@ def run_env(
 
     print_env_info(env, env_name, agent)
 
-    # Creaete TensorBoard Metrics.
+    # Create TensorBoard Metrics.
     log_dir = "logs/{}_{}_ClipRew{}".format(
         agent_class.__name__, env_name, clip_rewards
     )
     summary_writer = tf.summary.create_file_writer(log_dir)
+    
+    # Save model graph to TensorBoard.
+    profile = True
+    tf.summary.trace_on(graph=True, profiler=False)
+    agent.main_nn(np.random.randn(1, 84, 84, 4))
+    with summary_writer.as_default():
+        tf.summary.trace_export(name="trace", step=0)
+
+    if profile:
+        tf.summary.trace_on(graph=False, profiler=True)
 
     imp = np.array([1.0 for _ in range(batch_size)])
     beta = 0.7
@@ -145,19 +156,15 @@ def run_env(
     returns, clipped_returns = [], []
     cur_frame, episode = 0, 0
 
+    start = time.time()
     # Start learning!
     while cur_frame < num_steps:
         state = env.reset()
         done, ep_rew, clipped_ep_rew = False, 0, 0
         # Start an episode.
         while not done:
-            state_in = np.array(
-                np.expand_dims(state, axis=0), dtype=np.float32
-            )
             # Sample action from policy and take that action in the env.
-            if normalize_obs:
-                state_in = state_in / 255.
-            action = agent.take_exploration_action(state_in, env, epsilon)
+            action = agent.take_exploration_action(state, env, epsilon)
             next_state, reward, done, info = env.step(action)
             clipped_reward = np.sign(reward)
             rew = clipped_reward if clip_rewards else reward
@@ -174,10 +181,9 @@ def run_env(
                         batch_size
                     )
                 else:
-                    st, act, rew, next_st, d = agent.buffer.sample(batch_size)
+                    st, act, rew, next_st, d = agent.model_input.get_next()
+                    #st, act, rew, next_st, d = agent.buffer.sample(batch_size)
                     beta = 0.0
-                if normalize_obs:
-                    st, next_st = st / 255., next_st / 255.
                 loss_tuple, td_errors = agent.train_step(
                     st, act, rew, next_st, d, imp ** beta
                 )
@@ -208,6 +214,15 @@ def run_env(
             if cur_frame % 100000 == 0:
                 with summary_writer.as_default():
                     tf.summary.scalar("epsilon", epsilon, step=cur_frame)
+
+            if cur_frame == 50 and profile:
+                with summary_writer.as_default():
+                    tf.summary.trace_export(name="trace", step=cur_frame, profiler_outdir=log_dir)
+
+            if cur_frame % 100 == 0:
+                end = time.time()
+                print(end-start)
+                start = time.time()
 
         with summary_writer.as_default():
             tf.summary.scalar("clipped_return", clipped_ep_rew, step=episode)

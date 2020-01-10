@@ -11,6 +11,40 @@ from envs import ATARI_ENVS  # Remove this line if you only need this file.
 layers = tf.keras.layers
 
 
+class DatasetReplayBuffer(object):
+    """Experience replay buffer that samples uniformly."""
+
+    def __init__(self, size):
+        """Initializes the buffer."""
+        self.buffer = deque(maxlen=size)
+
+    def add_to_buffer(self, state, action, reward, next_state, done):
+        """Adds data to experience replay buffer."""
+        self.buffer.append((state, action, reward, next_state, done))
+
+    def __len__(self):
+        return len(self.buffer)
+
+    def sample_gen(self):
+        """Samples num_sample elements from the buffer."""
+        while True:
+            states, actions, rewards, next_states, dones = [], [], [], [], []
+            idx = np.random.choice(len(self.buffer), 1)
+            elem = self.buffer[idx[0]]
+            state, action, reward, next_state, done = elem
+            states = np.array(state, copy=False)
+            actions = np.array(action, copy=False)
+            rewards = np.array(reward, dtype=np.float32)
+            next_states = np.array(next_state, copy=False)
+            dones = np.array(done, dtype=np.float32)
+            yield states, actions, rewards, next_states, dones
+
+    def build_iterator(self, batch_size):
+        dataset = tf.data.Dataset.from_generator(self.sample_gen, (tf.uint8, tf.int32, tf.float32, tf.uint8, tf.float32))
+        dataset = dataset.batch(batch_size).prefetch(3)
+        return dataset.make_one_shot_iterator()
+
+
 class ReplayBuffer(object):
     """Experience replay buffer that samples uniformly."""
 
@@ -27,15 +61,22 @@ class ReplayBuffer(object):
 
     def sample(self, num_samples):
         """Samples num_sample elements from the buffer."""
-        batch = random.sample(self.buffer, num_samples)
-        states, actions, rewards, next_states, dones = list(zip(*batch))
-        states = np.array(states, copy=False, dtype=np.float32)
-        actions = np.array(actions, copy=False)
-        rewards = np.array(rewards, copy=False, dtype=np.float32)
-        next_states = np.array(next_states, copy=False, dtype=np.float32)
-        dones = np.array(dones, copy=False, dtype=np.float32)
+        states, actions, rewards, next_states, dones = [], [], [], [], []
+        idx = np.random.choice(len(self.buffer), num_samples)
+        for i in idx:
+            elem = self.buffer[i]
+            state, action, reward, next_state, done = elem
+            states.append(np.array(state, copy=False))
+            actions.append(np.array(action, copy=False))
+            rewards.append(reward)
+            next_states.append(np.array(next_state, copy=False))
+            dones.append(done)
+        states = np.array(states)
+        actions = np.array(actions)
+        rewards = np.array(rewards, dtype=np.float32)
+        next_states = np.array(next_states)
+        dones = np.array(dones, dtype=np.float32)
         return states, actions, rewards, next_states, dones
-
 
 class PrioritizedReplayBuffer(object):
     """Experience replay buffer that samples proportionately to the TD errors
@@ -114,9 +155,10 @@ class PrioritizedReplayBuffer(object):
 class QNetworkConv(tf.keras.Model):
     """Convolutional neural network for the Atari games."""
 
-    def __init__(self, num_actions):
+    def __init__(self, num_actions, normalize=False):
         """Initializes the neural network."""
         super(QNetworkConv, self).__init__()
+        self.normalize = normalize
         self.conv1 = layers.Conv2D(
             filters=32,
             kernel_size=8,
@@ -159,6 +201,9 @@ class QNetworkConv(tf.keras.Model):
             qs: tf.Tensor, the q-values of the given state for all possible
                 actions.
         """
+        states = tf.cast(states, tf.float32)
+        if self.normalize:
+            states = states / 255.
         x = self.conv1(states)
         x = self.conv2(x)
         x = self.conv3(x)
@@ -200,8 +245,9 @@ class DQN(object):
         num_actions,
         prioritized=False,
         prioritization_alpha=0.6,
+        normalize_obs=False,
         lr=1e-5,
-        buffer_size=100000,
+        buffer_size=int(1e6),
         discount=0.99,
     ):
         """Initializes the class."""
@@ -213,11 +259,12 @@ class DQN(object):
                 size=buffer_size, alpha=prioritization_alpha
             )
         else:
-            self.buffer = ReplayBuffer(buffer_size)
+            self.buffer = DatasetReplayBuffer(buffer_size)
+            self.model_input = self.buffer.build_iterator(32)
 
         if env_name in ["CarRacing-v0"] + ATARI_ENVS:
-            self.main_nn = QNetworkConv(num_actions)
-            self.target_nn = QNetworkConv(num_actions)
+            self.main_nn = QNetworkConv(num_actions, normalize_obs)
+            self.target_nn = QNetworkConv(num_actions, normalize_obs)
         else:
             self.main_nn = QNetwork(num_actions)
             self.target_nn = QNetwork(num_actions)
@@ -274,6 +321,7 @@ class DQN(object):
         if result < epsilon:
             return env.action_space.sample()
         else:
+            state = np.expand_dims(state, axis=0)
             q = self.run_main_nn(state).numpy()
             return np.argmax(q)  # Greedy action for state
 

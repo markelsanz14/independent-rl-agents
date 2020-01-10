@@ -3,3 +3,4 @@
 *saved_models*
 *logs*
 *.swp
+*wandb*
