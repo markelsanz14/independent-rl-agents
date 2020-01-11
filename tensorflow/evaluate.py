@@ -68,7 +68,7 @@ def evaluate_env(
         prioritized: bool, whether to use prioritized experience replay.
         clip_rewards: bool, whether to clip the rewards to {-1, 0, 1} or not.
     """
-    os.environ["CUDA_VISIBLE_DEVICES"] = "0"
+    os.environ["CUDA_VISIBLE_DEVICES"] = "4"
     gpus = tf.config.experimental.list_physical_devices("GPU")
     if gpus:
         for gpu in gpus:
@@ -111,11 +111,8 @@ def evaluate_env(
         state = env.reset()
         done, ep_rew = False, 0
         while not done:
-            state_in = np.array(
-                np.expand_dims(state, axis=0), dtype=np.float32
-            )
             # Sample action from policy and take that action in the env.
-            action = agent.take_exploration_action(state_in, env, epsilon)
+            action = agent.take_exploration_action(state, env, epsilon)
             next_state, reward, done, info = env.step(action)
             state = next_state
             ep_rew += reward

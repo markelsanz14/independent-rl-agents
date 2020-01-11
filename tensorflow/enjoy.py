@@ -106,11 +106,8 @@ def enjoy_env(
         done, ep_rew = False, 0
         while not done:
             env.render()
-            state_in = np.array(
-                np.expand_dims(state, axis=0), dtype=np.float32
-            )
             # Sample action from policy and take that action in the env.
-            action = agent.take_exploration_action(state_in, env, epsilon)
+            action = agent.take_exploration_action(state, env, epsilon)
             next_state, reward, done, info = env.step(action)
             state = next_state
             ep_rew += reward
