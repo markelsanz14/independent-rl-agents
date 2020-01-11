@@ -247,8 +247,10 @@ class DQN(object):
         prioritization_alpha=0.6,
         normalize_obs=False,
         lr=1e-5,
-        buffer_size=int(1e6),
+        buffer_size=int(1e5),
         discount=0.99,
+        batch_size=32,
+        gpus=None,
     ):
         """Initializes the class."""
         self.num_state_feats = num_state_feats
@@ -259,8 +261,11 @@ class DQN(object):
                 size=buffer_size, alpha=prioritization_alpha
             )
         else:
-            self.buffer = DatasetReplayBuffer(buffer_size)
-            self.model_input = self.buffer.build_iterator(32)
+            if gpus:
+                self.buffer = DatasetReplayBuffer(buffer_size)
+                self.model_input = self.buffer.build_iterator(batch_size)
+            else:
+                self.buffer = ReplayBuffer(buffer_size)
 
         if env_name in ["CarRacing-v0"] + ATARI_ENVS:
             self.main_nn = QNetworkConv(num_actions, normalize_obs)

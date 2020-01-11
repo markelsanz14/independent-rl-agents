@@ -20,7 +20,7 @@ from agents.dueling_dqn import DuelingDQN
 def main():
     """Main function. It runs the different algorithms in all the environemnts.
     """
-    #wandb.init(sync_tensorboard=True, project="tf-rl")
+    wandb.init(sync_tensorboard=True, project="tf-rl")
     parser = argparse.ArgumentParser(
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
         description="Process inputs",
@@ -93,11 +93,12 @@ def run_env(
         prioritized: bool, whether to use prioritized experience replay.
         clip_rewards: bool, whether to clip the rewards to {-1, 0, 1} or not.
     """
-    os.environ["CUDA_VISIBLE_DEVICES"] = "0"
+    os.environ["CUDA_VISIBLE_DEVICES"] = "2"
     gpus = tf.config.experimental.list_physical_devices("GPU")
+    limit_gpu_memory = True
     if gpus:
         for gpu in gpus:
-            tf.config.experimental.set_memory_growth(gpu, True)
+            tf.config.experimental.set_memory_growth(gpu, limit_gpu_memory)
 
     if env_name in ATARI_ENVS:
         env = make_atari(env_name)
@@ -117,6 +118,8 @@ def run_env(
             prioritized=prioritized,
             prioritization_alpha=prioritization_alpha,
             normalize_obs=normalize_obs,
+            batch_size=batch_size,
+            gpus=gpus,
         )
     else:
         num_state_feats = env.observation_space.shape
@@ -140,7 +143,7 @@ def run_env(
     summary_writer = tf.summary.create_file_writer(log_dir)
     
     # Save model graph to TensorBoard.
-    profile = True
+    profile = False
     tf.summary.trace_on(graph=True, profiler=False)
     agent.main_nn(np.random.randn(1, 84, 84, 4))
     with summary_writer.as_default():
@@ -181,8 +184,10 @@ def run_env(
                         batch_size
                     )
                 else:
-                    st, act, rew, next_st, d = agent.model_input.get_next()
-                    #st, act, rew, next_st, d = agent.buffer.sample(batch_size)
+                    if gpus:
+                        st, act, rew, next_st, d = agent.model_input.get_next()
+                    else:
+                        st, act, rew, next_st, d = agent.buffer.sample(batch_size)
                     beta = 0.0
                 loss_tuple, td_errors = agent.train_step(
                     st, act, rew, next_st, d, imp ** beta
@@ -215,13 +220,13 @@ def run_env(
                 with summary_writer.as_default():
                     tf.summary.scalar("epsilon", epsilon, step=cur_frame)
 
-            if cur_frame == 50 and profile:
+            if cur_frame == 100 and profile:
                 with summary_writer.as_default():
                     tf.summary.trace_export(name="trace", step=cur_frame, profiler_outdir=log_dir)
 
             if cur_frame % 100 == 0:
                 end = time.time()
-                print(end-start)
+                #########print(end-start)
                 start = time.time()
 
         with summary_writer.as_default():
