@@ -5,10 +5,11 @@ import argparse
 import numpy as np
 import tensorflow as tf
 import gym
-import wandb
 
 from envs import ATARI_ENVS
 from atari_wrappers import make_atari, wrap_deepmind
+from replay_buffers.uniform import UniformBuffer, DatasetUniformBuffer
+from networks.nature_cnn import NatureCNN
 
 # from agents.ddpg import DDPG
 from agents.dqn import DQN
@@ -20,7 +21,6 @@ from agents.dueling_dqn import DuelingDQN
 def main():
     """Main function. It runs the different algorithms in all the environemnts.
     """
-    wandb.init(sync_tensorboard=True, project="tf-rl")
     parser = argparse.ArgumentParser(
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
         description="Process inputs",
@@ -57,21 +57,11 @@ def main():
         num_steps=args.num_steps,
     )
 
-    """
-    continuous_agents = [DDPG]
-    continuous_envs = [
-        "CarRacing-v0",
-        "BipedalWalker-v2",
-        "Pendulum-v0",
-        "LunarLanderContinuous-v2",
-        "BipedalWalkerHardcore-v2",
-        "MountainCarContinuous-v0",
-    ]
-    """
 
 def run_env(
     env_name,
     agent_class,
+    buffer_size=int(1e5),
     prioritized=False,
     prioritization_alpha=0.6,
     clip_rewards=True,
@@ -81,7 +71,7 @@ def run_env(
     initial_exploration=1.0,
     final_exploration=0.01,
     exploration_steps=int(2e6),
-    learning_starts=40,#int(1e4),
+    learning_starts=int(1e4),
     train_freq=1,
     target_update_freq=int(1e5),
     save_ckpt_freq=int(1e6),
@@ -111,15 +101,17 @@ def run_env(
     if isinstance(env.action_space, gym.spaces.Discrete):
         num_state_feats = env.observation_space.shape
         num_actions = env.action_space.n
+
+        replay_buffer = UniformBuffer(size=buffer_size)
+        main_network = NatureCNN(num_actions)
+        target_network = NatureCNN(num_actions)
         agent = agent_class(
             env_name,
-            num_state_feats,
-            num_actions,
-            prioritized=prioritized,
-            prioritization_alpha=prioritization_alpha,
-            normalize_obs=normalize_obs,
+            num_actions=num_actions,
+            main_nn=main_network,
+            target_nn=target_network,
+            replay_buffer=replay_buffer,
             batch_size=batch_size,
-            gpus=gpus,
         )
     else:
         num_state_feats = env.observation_space.shape
@@ -136,19 +128,16 @@ def run_env(
 
     print_env_info(env, env_name, agent)
 
-    # Create TensorBoard Metrics.
+    # Create TensorBoard Metrics and save graph.
     log_dir = "logs/{}_{}_ClipRew{}".format(
         agent_class.__name__, env_name, clip_rewards
     )
     summary_writer = tf.summary.create_file_writer(log_dir)
-    
-    # Save model graph to TensorBoard.
     profile = False
     tf.summary.trace_on(graph=True, profiler=False)
     agent.main_nn(np.random.randn(1, 84, 84, 4))
     with summary_writer.as_default():
         tf.summary.trace_export(name="trace", step=0)
-
     if profile:
         tf.summary.trace_on(graph=False, profiler=True)
 
@@ -167,7 +156,8 @@ def run_env(
         # Start an episode.
         while not done:
             # Sample action from policy and take that action in the env.
-            action = agent.take_exploration_action(state, env, epsilon)
+            state_in = np.array(state) / 255.0 if normalize_obs else state
+            action = agent.take_exploration_action(state_in, env, epsilon)
             next_state, reward, done, info = env.step(action)
             clipped_reward = np.sign(reward)
             rew = clipped_reward if clip_rewards else reward
@@ -187,8 +177,13 @@ def run_env(
                     if gpus:
                         st, act, rew, next_st, d = agent.model_input.get_next()
                     else:
-                        st, act, rew, next_st, d = agent.buffer.sample(batch_size)
+                        st, act, rew, next_st, d = agent.buffer.sample(
+                            batch_size
+                        )
                     beta = 0.0
+                    if normalize_obs:
+                        st = st / 255.0
+                        next_st = next_st / 255.0
                 loss_tuple, td_errors = agent.train_step(
                     st, act, rew, next_st, d, imp ** beta
                 )
@@ -222,7 +217,9 @@ def run_env(
 
             if cur_frame == 100 and profile:
                 with summary_writer.as_default():
-                    tf.summary.trace_export(name="trace", step=cur_frame, profiler_outdir=log_dir)
+                    tf.summary.trace_export(
+                        name="trace", step=cur_frame, profiler_outdir=log_dir
+                    )
 
             if cur_frame % 100 == 0:
                 end = time.time()
