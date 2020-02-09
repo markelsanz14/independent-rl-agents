@@ -23,7 +23,6 @@ class DQN(object):
         lr=1e-5,
         discount=0.99,
         batch_size=32,
-        gpus=None,
     ):
         """Initializes the class."""
         self.num_actions = num_actions

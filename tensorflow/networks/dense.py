@@ -14,6 +14,7 @@ class QNetwork(tf.keras.Model):
         self.dense2 = layers.Dense(32, activation="relu")
         self.out = layers.Dense(num_actions)
 
+    @tf.function
     def call(self, states):
         """Forward pass of the neural network with some inputs.
         Args:

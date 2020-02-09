@@ -10,12 +10,11 @@ from envs import ATARI_ENVS
 from atari_wrappers import make_atari, wrap_deepmind
 from replay_buffers.uniform import UniformBuffer, DatasetUniformBuffer
 from networks.nature_cnn import NatureCNN
+from networks.dueling_cnn import DuelingCNN
 
 # from agents.ddpg import DDPG
 from agents.dqn import DQN
 from agents.double_dqn import DoubleDQN
-from agents.double_dueling_dqn import DoubleDuelingDQN
-from agents.dueling_dqn import DuelingDQN
 
 
 def main():
@@ -30,11 +29,11 @@ def main():
         "--env", type=str, choices=ATARI_ENVS, default="BreakoutNoFrameskip-v4"
     )
     parser.add_argument("--agent", type=str, choices=["DQN"], default="DQN")
-    parser.add_argument("--prioritized", type=bool, default=False)
-    parser.add_argument("--double_q", type=bool, default=False)
-    parser.add_argument("--dueling", type=bool, default=False)
+    parser.add_argument("--prioritized", type=int, default=0)
+    parser.add_argument("--double_q", type=int, default=0)
+    parser.add_argument("--dueling", type=int, default=0)
     parser.add_argument("--num_steps", type=int, default=int(1e7))
-    parser.add_argument("--clip_rewards", type=bool, default=True)
+    parser.add_argument("--clip_rewards", type=int, default=1)
 
     args = parser.parse_args()
     print("Arguments received:")
@@ -42,16 +41,12 @@ def main():
     if args.agent == "DQN":
         agent_class = DQN
         if args.double_q:
-            if args.dueling:
-                agent_class = DoubleDuelingDQN
-            else:
-                agent_class = DoubleDQN
-        elif args.dueling:
-            agent_class = DuelingDQN
+            agent_class = DoubleDQN
 
     run_env(
         env_name=args.env,
         agent_class=agent_class,
+        dueling=args.dueling,
         prioritized=args.prioritized,
         clip_rewards=args.clip_rewards,
         num_steps=args.num_steps,
@@ -62,6 +57,7 @@ def run_env(
     env_name,
     agent_class,
     buffer_size=int(1e5),
+    dueling=False,
     prioritized=False,
     prioritization_alpha=0.6,
     clip_rewards=True,
@@ -103,8 +99,13 @@ def run_env(
         num_actions = env.action_space.n
 
         replay_buffer = UniformBuffer(size=buffer_size)
-        main_network = NatureCNN(num_actions)
-        target_network = NatureCNN(num_actions)
+        if dueling:
+            main_network = DuelingCNN(num_actions)
+            target_network = DuelingCNN(num_actions)
+        else:
+            main_network = NatureCNN(num_actions)
+            target_network = NatureCNN(num_actions)
+
         agent = agent_class(
             env_name,
             num_actions=num_actions,
@@ -126,7 +127,7 @@ def run_env(
             max_action_values,
         )
 
-    print_env_info(env, env_name, agent)
+    print_env_info(env, env_name, agent, main_network)
 
     # Create TensorBoard Metrics and save graph.
     log_dir = "logs/{}_{}_ClipRew{}".format(
@@ -261,10 +262,11 @@ def print_result(env_name, epsilon, episode, step, returns, clipped_returns):
     print("----------------------------------")
 
 
-def print_env_info(env, env_name, agent):
+def print_env_info(env, env_name, agent, network):
     print("\n\n\n=============================")
     print("Environemnt: {}".format(env_name))
     print("Agent: {}".format(type(agent).__name__))
+    print('Network: {}'.format(type(network).__name__))
     print("Observation shape: {}".format(env.observation_space.shape))
     print("Action shape: {}".format(env.action_space))
     print("=============================\n")

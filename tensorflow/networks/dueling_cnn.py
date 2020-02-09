@@ -3,12 +3,12 @@ import tensorflow as tf
 layers = tf.keras.layers
 
 
-class NatureCNN(tf.keras.Model):
+class DuelingCNN(tf.keras.Model):
     """Convolutional neural network for the Atari games."""
 
     def __init__(self, num_actions):
         """Initializes the neural network."""
-        super(NatureCNN, self).__init__()
+        super(DuelingCNN, self).__init__()
         self.conv1 = layers.Conv2D(
             filters=32,
             kernel_size=8,
@@ -40,7 +40,9 @@ class NatureCNN(tf.keras.Model):
             kernel_initializer=tf.keras.initializers.VarianceScaling(2.0),
             bias_initializer=tf.keras.initializers.Zeros(),
         )
-        self.out = layers.Dense(units=num_actions)
+        self.V = layers.Dense(1)
+        self.A = layers.Dense(num_actions)
+        self.Q = layers.Dense(num_actions)
 
     @tf.function
     def call(self, states):
@@ -56,4 +58,7 @@ class NatureCNN(tf.keras.Model):
         x = self.conv3(x)
         x = self.flatten(x)
         x = self.dense1(x)
-        return self.out(x)
+        V = self.V(x)
+        A = self.A(x)
+        Q = V + tf.subtract(A, tf.reduce_mean(A, axis=1, keepdims=True))
+        return Q
