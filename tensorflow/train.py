@@ -79,7 +79,7 @@ def run_env(
         prioritized: bool, whether to use prioritized experience replay.
         clip_rewards: bool, whether to clip the rewards to {-1, 0, 1} or not.
     """
-    os.environ["CUDA_VISIBLE_DEVICES"] = "2"
+    os.environ["CUDA_VISIBLE_DEVICES"] = "0"
     gpus = tf.config.experimental.list_physical_devices("GPU")
     limit_gpu_memory = True
     if gpus:
@@ -98,7 +98,8 @@ def run_env(
         num_state_feats = env.observation_space.shape
         num_actions = env.action_space.n
 
-        replay_buffer = UniformBuffer(size=buffer_size)
+        replay_buffer = DatasetUniformBuffer(size=buffer_size)
+        model_input = replay_buffer.build_iterator(batch_size)
         if dueling:
             main_network = DuelingCNN(num_actions)
             target_network = DuelingCNN(num_actions)
@@ -130,8 +131,8 @@ def run_env(
     print_env_info(env, env_name, agent, main_network)
 
     # Create TensorBoard Metrics and save graph.
-    log_dir = "logs/{}_{}_ClipRew{}".format(
-        agent_class.__name__, env_name, clip_rewards
+    log_dir = "logs/{}_{}_{}_ClipRews{}".format(
+        agent_class.__name__, type(main_network).__name__, env_name, clip_rewards
     )
     summary_writer = tf.summary.create_file_writer(log_dir)
     profile = False
@@ -175,16 +176,16 @@ def run_env(
                         batch_size
                     )
                 else:
-                    if gpus:
-                        st, act, rew, next_st, d = agent.model_input.get_next()
-                    else:
+                    if type(replay_buffer).__name__ == "ReplayBuffer":
                         st, act, rew, next_st, d = agent.buffer.sample(
                             batch_size
                         )
+                    else:
+                        st, act, rew, next_st, d = next(model_input)
                     beta = 0.0
                     if normalize_obs:
-                        st = st / 255.0
-                        next_st = next_st / 255.0
+                        st = tf.cast(st, tf.float32) / 255.0
+                        next_st = tf.cast(next_st, tf.float32) / 255.0
                 loss_tuple, td_errors = agent.train_step(
                     st, act, rew, next_st, d, imp ** beta
                 )
@@ -224,7 +225,7 @@ def run_env(
 
             if cur_frame % 100 == 0:
                 end = time.time()
-                #########print(end-start)
+                # print(end-start)
                 start = time.time()
 
         with summary_writer.as_default():
@@ -266,7 +267,7 @@ def print_env_info(env, env_name, agent, network):
     print("\n\n\n=============================")
     print("Environemnt: {}".format(env_name))
     print("Agent: {}".format(type(agent).__name__))
-    print('Network: {}'.format(type(network).__name__))
+    print("Network: {}".format(type(network).__name__))
     print("Observation shape: {}".format(env.observation_space.shape))
     print("Action shape: {}".format(env.action_space))
     print("=============================\n")

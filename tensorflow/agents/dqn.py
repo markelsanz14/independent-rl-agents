@@ -39,7 +39,11 @@ class DQN(object):
             step=tf.Variable(1), optimizer=self.optimizer, net=self.main_nn
         )
         self.manager = tf.train.CheckpointManager(
-            self.ckpt, "./saved_models/{}-DQN".format(env_name), max_to_keep=3
+            self.ckpt,
+            "./saved_models/{}-DQN-{}".format(
+                env_name, type(main_nn).__name__
+            ),
+            max_to_keep=3,
         )
         self.ckpt.restore(self.manager.latest_checkpoint).expect_partial()
         if self.manager.latest_checkpoint:
