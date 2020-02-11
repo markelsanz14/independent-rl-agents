@@ -225,7 +225,7 @@ def run_env(
 
             if cur_frame % 100 == 0:
                 end = time.time()
-                # print(end-start)
+                print(end-start)
                 start = time.time()
 
         with summary_writer.as_default():

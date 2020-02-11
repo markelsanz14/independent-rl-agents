@@ -106,7 +106,9 @@ class ActorNetworkConv(nn.Module):
         x = F.relu(self.fc1(x.view(x.size(0), -1)))  # Flatten input.
         x = self.out(x)
         action = x * self.max_action_values
-        action_clamped = action.clamp(self.min_action_values, self.max_action_values)
+        action_clamped = action.clamp(
+            self.min_action_values, self.max_action_values
+        )
         return action_clamped
 
 
@@ -187,9 +189,11 @@ class DDPG(object):
             self.critic_target = CriticNetwork(
                 num_state_feats, num_action_feats
             )
-        
+
         self.actor_optimizer = optim.Adam(self.actor.parameters(), lr=actor_lr)
-        self.critic_optimizer = optim.Adam(self.critic.parameters(), lr=critic_lr)
+        self.critic_optimizer = optim.Adam(
+            self.critic.parameters(), lr=critic_lr
+        )
         self.loss_fn = nn.SmoothL1Loss()  # Huber loss.
 
         self.save_path = "./saved_models/DQN-{}.pt".format(env_name)
@@ -209,8 +213,10 @@ class DDPG(object):
         """Takes action using self.actor network and adding noise for
         exploration."""
         act = self.actor(state) + torch.distributions.Normal(
-            loc=(torch.tensor([0. for _ in range(self.num_action_feats)])),
-            scale=torch.tensor([noise_scale for _ in range(self.num_action_feats)]),
+            loc=(torch.tensor([0.0 for _ in range(self.num_action_feats)])),
+            scale=torch.tensor(
+                [noise_scale for _ in range(self.num_action_feats)]
+            ),
         )
         return act.clamp(self.min_action_values, self.max_action_values)[0]
 
@@ -219,7 +225,8 @@ class DDPG(object):
         for source_weight, target_weight in zip(
             source_weights, target_weights
         ):
-            target_weight.data.copy_(tau * source_weight + (1.0 - tau) * target_weight
+            target_weight.data.copy_(
+                tau * source_weight + (1.0 - tau) * target_weight
             )
 
     def train_step(
@@ -235,7 +242,9 @@ class DDPG(object):
             next_actions = self.actor_target(batch_next_states)
             next_qs = self.critic_target((batch_next_states, next_actions))
             next_qs = next_qs.view(-1)
-            target = batch_rewards + (1.0 - batch_dones) * self.discount * next_qs
+            target = (
+                batch_rewards + (1.0 - batch_dones) * self.discount * next_qs
+            )
         # Calculate critic loss.
         qs = self.critic((batch_states, batch_actions))
         qs = qs.view(-1)

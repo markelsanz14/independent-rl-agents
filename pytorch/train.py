@@ -1,4 +1,5 @@
 import os
+import time
 import argparse
 
 import numpy as np
@@ -7,12 +8,13 @@ import gym
 
 from envs import ATARI_ENVS
 from atari_wrappers import make_atari, wrap_deepmind
+from replay_buffers.uniform import UniformBuffer
+from networks.nature_cnn import NatureCNN
+from networks.dueling_cnn import DuelingCNN
 
 # from agents.ddpg import DDPG
 from agents.dqn import DQN
 from agents.double_dqn import DoubleDQN
-from agents.double_dueling_dqn import DoubleDuelingDQN
-from agents.dueling_dqn import DuelingDQN
 
 
 def main():
@@ -27,11 +29,11 @@ def main():
         "--env", type=str, choices=ATARI_ENVS, default="BreakoutNoFrameskip-v4"
     )
     parser.add_argument("--agent", type=str, choices=["DQN"], default="DQN")
-    parser.add_argument("--prioritized", type=bool, default=False)
-    parser.add_argument("--double_q", type=bool, default=False)
-    parser.add_argument("--dueling", type=bool, default=False)
+    parser.add_argument("--prioritized", type=int, default=0)
+    parser.add_argument("--double_q", type=int, default=0)
+    parser.add_argument("--dueling", type=int, default=0)
     parser.add_argument("--num_steps", type=int, default=int(1e7))
-    parser.add_argument("--clip_rewards", type=bool, default=True)
+    parser.add_argument("--clip_rewards", type=int, default=1)
 
     args = parser.parse_args()
     print("Arguments received:")
@@ -39,48 +41,35 @@ def main():
     if args.agent == "DQN":
         agent_class = DQN
         if args.double_q:
-            if args.dueling:
-                agent_class = DoubleDuelingDQN
-            else:
-                agent_class = DoubleDQN
-        elif args.dueling:
-            agent_class = DuelingDQN
+            agent_class = DoubleDQN
 
     run_env(
         env_name=args.env,
         agent_class=agent_class,
+        dueling=args.dueling,
         prioritized=args.prioritized,
         clip_rewards=args.clip_rewards,
         num_steps=args.num_steps,
     )
 
-    """
-    continuous_agents = [DDPG]
-    continuous_envs = [
-        "CarRacing-v0",
-        "BipedalWalker-v2",
-        "Pendulum-v0",
-        "LunarLanderContinuous-v2",
-        "BipedalWalkerHardcore-v2",
-        "MountainCarContinuous-v0",
-    ]
-    """
-
 
 def run_env(
     env_name,
     agent_class,
+    buffer_size=int(1e5),
+    dueling=False,
     prioritized=False,
     prioritization_alpha=0.6,
     clip_rewards=True,
+    normalize_obs=True,
     num_steps=int(1e6),
     batch_size=32,
     initial_exploration=1.0,
-    final_exploration=0.1,
-    exploration_steps=int(1e6),
-    learning_starts=int(1e2),
-    train_freq=4,
-    target_update_freq=int(1e4),
+    final_exploration=0.01,
+    exploration_steps=int(2e6),
+    learning_starts=50,#int(1e4),
+    train_freq=1,
+    target_update_freq=int(1e5),
     save_ckpt_freq=int(1e6),
 ):
     """Runs an agent in a single environment to evaluate its performance.
@@ -104,12 +93,22 @@ def run_env(
     if isinstance(env.action_space, gym.spaces.Discrete):
         num_state_feats = env.observation_space.shape
         num_actions = env.action_space.n
+
+        replay_buffer = UniformBuffer(size=buffer_size)
+        if dueling:
+            main_network = DuelingCNN(num_actions)
+            target_network = DuelingCNN(num_actions)
+        else:
+            main_network = NatureCNN(num_actions)
+            target_network = NatureCNN(num_actions)
+
         agent = agent_class(
             env_name,
-            num_state_feats,
-            num_actions,
-            prioritized=prioritized,
-            prioritization_alpha=prioritization_alpha,
+            num_actions=num_actions,
+            main_nn=main_network,
+            target_nn=target_network,
+            replay_buffer=replay_buffer,
+            batch_size=batch_size,
             device=device,
         )
     else:
@@ -126,7 +125,7 @@ def run_env(
             device=device,
         )
 
-    print_env_info(env, env_name, agent)
+    print_env_info(env, env_name, agent, main_network)
 
     # Creaete TensorBoard Metrics.
     # log_dir = "logs/{}_{}_ClipRew{}".format(
@@ -140,6 +139,7 @@ def run_env(
     epsilon = initial_exploration
     returns = []
     cur_frame, episode = 0, 0
+    start = time.time()
 
     # Start learning!
     while cur_frame < num_steps:
@@ -167,12 +167,20 @@ def run_env(
                 else:
                     st, act, rew, next_st, d = agent.buffer.sample(batch_size)
                     beta = 0.0
+                if normalize_obs:
+                    st = st / 255.0
+                    next_st = next_st / 255.0
                 loss_tuple, td_errors = agent.train_step(
                     st, act, rew, next_st, d, imp ** beta
                 )
                 if prioritized:
                     # Update priorities
                     agent.buffer.update_priorities(indx, td_errors)
+            
+            if cur_frame % 100 == 0:
+                end = time.time()
+                # print(end-start)
+                start = time.time()
 
             # Update value of the exploration value epsilon.
             epsilon = decay_epsilon(
@@ -226,10 +234,11 @@ def print_result(env_name, epsilon, episode, step, returns):
     print("-------------------------------")
 
 
-def print_env_info(env, env_name, agent):
+def print_env_info(env, env_name, agent, network):
     print("\n\n\n=============================")
     print("Environemnt: {}".format(env_name))
     print("Agent: {}".format(type(agent).__name__))
+    print("Network: {}".format(type(network).__name__))
     print("Observation shape: {}".format(env.observation_space.shape))
     print("Action shape: {}".format(env.action_space))
     print("=============================\n")

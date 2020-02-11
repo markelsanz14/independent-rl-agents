@@ -1,99 +1,10 @@
-import random
 import os
-from collections import deque
 
 import torch
 import torch.nn as nn
 import torch.optim as optim
 import torch.nn.functional as F
 import numpy as np
-
-from envs import ATARI_ENVS
-
-
-class ReplayBuffer(object):
-    """Experience replay buffer that samples uniformly."""
-
-    def __init__(self, size):
-        """Initializes the buffer."""
-        self.buffer = deque(maxlen=size)
-
-    def add_to_buffer(self, state, action, reward, next_state, done):
-        """Adds data to experience replay buffer."""
-        self.buffer.append((state, action, reward, next_state, done))
-
-    def __len__(self):
-        return len(self.buffer)
-
-    def sample(self, num_samples):
-        """Samples num_sample elements from the buffer."""
-        batch = random.sample(self.buffer, num_samples)
-        states, actions, rewards, next_states, dones = list(zip(*batch))
-        states = torch.tensor(states, dtype=torch.float32).transpose(1, 3)
-        actions = torch.tensor(actions, dtype=torch.int64)
-        rewards = torch.tensor(rewards, dtype=torch.float32)
-        next_states = torch.tensor(next_states, dtype=torch.float32).transpose(
-            1, 3
-        )
-        dones = torch.tensor(dones, dtype=torch.float32)
-        return states, actions, rewards, next_states, dones
-
-
-class QNetworkConv(nn.Module):
-    """Convolutional neural network for the Atari games."""
-
-    def __init__(self, num_actions):
-        """Initializes the neural network."""
-        super(QNetworkConv, self).__init__()
-        self.conv1 = nn.Conv2d(4, 32, kernel_size=8, stride=4)
-        self.conv2 = nn.Conv2d(32, 64, kernel_size=4, stride=2)
-        self.conv3 = nn.Conv2d(64, 64, kernel_size=3, stride=1)
-
-        def conv2d_size_out(size, kernel_size=5, stride=2):
-            return (size - (kernel_size - 1) - 1) // stride + 1
-
-        conv1size = conv2d_size_out(84, kernel_size=8, stride=4)
-        conv2size = conv2d_size_out(conv1size, kernel_size=4, stride=2)
-        conv3size = conv2d_size_out(conv2size, kernel_size=3, stride=1)
-        self.fc1 = nn.Linear(64 * conv3size * conv3size, 512)
-        self.out = nn.Linear(512, num_actions)
-
-    def forward(self, states):
-        """Forward pass of the neural network with some inputs.
-        Args:
-            states: Tensor, batch of states.
-        Returns:
-            qs: Tensor, the q-values of the given state for all possible
-                actions.
-        """
-        x = F.relu(self.conv1(states))
-        x = F.relu(self.conv2(x))
-        x = F.relu(self.conv3(x))
-        x = F.relu(self.fc1(x.view(x.size(0), -1)))  # Flatten input.
-        return self.out(x)
-
-
-class QNetwork(nn.Module):
-    """Dense neural network for simple games."""
-
-    def __init__(self, num_inputs, num_actions):
-        """Initializes the neural network."""
-        super(QNetwork, self).__init__()
-        self.fc1 = nn.Linear(num_inputs, 32)
-        self.fc2 = nn.Linear(32, 32)
-        self.out = nn.Linear(32, num_actions)
-
-    def forward(self, states):
-        """Forward pass of the neural network with some inputs.
-        Args:
-            states: Tensor, batch of states.
-        Returns:
-            qs: Tensor, the q-values of the given state for all possible
-                actions.
-        """
-        x = F.relu(self.fc1(states))
-        x = F.relu(self.fc2(x))
-        return self.out(x)
 
 
 class DoubleDQN(object):
@@ -102,42 +13,35 @@ class DoubleDQN(object):
     def __init__(
         self,
         env_name,
-        num_state_feats,
         num_actions,
-        lr=1e-4,
-        buffer_size=10000,
+        main_nn,
+        target_nn,
+        replay_buffer,
+        lr=1e-5,
         discount=0.99,
-        prioritized=False,
-        prioritization_alpha=0.6,
+        batch_size=32,
         device="cpu",
     ):
-        self.num_state_feats = num_state_feats
+        """Initializes the class."""
         self.num_actions = num_actions
         self.discount = discount
-        self.buffer = ReplayBuffer(buffer_size)
-
-        if env_name in ["CarRacing-v0"] + ATARI_ENVS:
-            self.main_nn = QNetworkConv(num_actions).to(device)
-            self.target_nn = QNetworkConv(num_actions).to(device)
-        else:
-            self.main_nn = QNetwork(num_actions).to(device)
-            self.target_nn = QNetwork(num_actions).to(device)
+        self.main_nn = main_nn
+        self.target_nn = target_nn
+        self.buffer = replay_buffer
 
         self.optimizer = optim.Adam(self.main_nn.parameters(), lr=lr)
         self.loss_fn = nn.SmoothL1Loss()  # Huber loss.
 
-        self.save_path = "./saved_models/DoubleDQN-{}.pt".format(env_name)
+        self.save_path = "./saved_models/DQN-{}.pt".format(env_name)
         if os.path.isfile(self.save_path):
             self.main_nn = torch.load(self.save_path)
             print("Loaded model from {}:".format(self.save_path))
+        else:
+            print("Initializing main neural network from scratch.")
 
     def save_checkpoint(self, step):
         torch.save(self.main_nn, self.save_path)
-        print(
-            "Saved main_nn checkpoint for step {}: {}".format(
-                step, self.save_path
-            )
-        )
+        print("Saved main_nn at {}".format(self.save_path))
 
     def take_exploration_action(self, state, env, epsilon=0.1):
         """Take random action with probability epsilon, else take best action.
@@ -154,7 +58,7 @@ class DoubleDQN(object):
         if result < epsilon:
             return env.action_space.sample()
         else:
-            q = self.run_main_nn(state).data.numpy()
+            q = self.main_nn(state).data.numpy()
             return np.argmax(q)  # Greedy action for state
 
     def train_step(

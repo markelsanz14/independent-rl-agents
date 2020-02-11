@@ -5,7 +5,6 @@ import tensorflow as tf
 import numpy as np
 
 # Modify these lines if you only need this file:
-from envs import ATARI_ENVS
 from replay_buffers.uniform import UniformBuffer
 from networks.nature_cnn import NatureCNN
 
