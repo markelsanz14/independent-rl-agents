@@ -32,6 +32,7 @@ class DQN(object):
         self.main_nn = main_nn
         self.target_nn = target_nn
         self.buffer = replay_buffer
+        self.device = device
 
         self.optimizer = optim.Adam(self.main_nn.parameters(), lr=lr)
         self.loss_fn = nn.SmoothL1Loss()  # Huber loss.
@@ -62,7 +63,7 @@ class DQN(object):
         if result < epsilon:
             return env.action_space.sample()
         else:
-            q = self.main_nn(state).data.numpy()
+            q = self.main_nn(state).to(self.device).data.numpy()
             return np.argmax(q)  # Greedy action for state
 
     def train_step(
@@ -75,9 +76,9 @@ class DQN(object):
         """
         # Calculate targets.
         with torch.no_grad():
-            max_next_qs = self.target_nn(next_states).max(-1).values
+            max_next_qs = self.target_nn(next_states).to(self.device).max(-1).values
             target = rewards + (1.0 - dones) * self.discount * max_next_qs
-        qs = self.main_nn(states)
+        qs = self.main_nn(states).to(self.device)
         action_masks = F.one_hot(actions, self.num_actions)
         masked_qs = (action_masks * qs).sum(dim=-1)
         td_errors = (target - masked_qs).abs()

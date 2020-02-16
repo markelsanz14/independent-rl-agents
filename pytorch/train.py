@@ -84,6 +84,7 @@ def run_env(
     """
     os.environ["CUDA_VISIBLE_DEVICES"] = "0"
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    device = 'cpu'
 
     if env_name in ATARI_ENVS:
         env = make_atari(env_name)
@@ -97,16 +98,15 @@ def run_env(
         num_state_feats = env.observation_space.shape
         num_actions = env.action_space.n
 
-        # replay_buffer = UniformBuffer(size=buffer_size)
-        replay_buffer = DatasetBuffer(size=buffer_size)
-        buffer_loader = DataLoader(replay_buffer, batch_size=batch_size,
-                num_workers=2)
+        replay_buffer = UniformBuffer(size=buffer_size)
+        #replay_buffer = DatasetBuffer(size=buffer_size)
+        #buffer_loader = DataLoader(replay_buffer, batch_size=batch_size, num_workers=2)
         if dueling:
-            main_network = DuelingCNN(num_actions)
-            target_network = DuelingCNN(num_actions)
+            main_network = DuelingCNN(num_actions).to(device)
+            target_network = DuelingCNN(num_actions).to(device)
         else:
-            main_network = NatureCNN(num_actions)
-            target_network = NatureCNN(num_actions)
+            main_network = NatureCNN(num_actions).to(device)
+            target_network = NatureCNN(num_actions).to(device)
 
         agent = agent_class(
             env_name,
@@ -182,18 +182,22 @@ def run_env(
                         if k == 5:
                             quit()
                     """
-                    if cur_frame % 1000 == 0:
-                        replay_buffer.shuffle_data()
-                    st, act, rew, next_st, d, idx = next(iter(buffer_loader))
+                    #if cur_frame % 1000 == 0:
+                    #    replay_buffer.shuffle_data()
+                    #st, act, rew, next_st, d, idx = next(iter(buffer_loader))
 
                     #print(d)
                     #print('AA')
                     #time.sleep(0.1)
-                    #st, act, rew, next_st, d = agent.buffer.sample(batch_size)
+                    st, act, rew, next_st, d = agent.buffer.sample(batch_size)
                     beta = 0.0
                 if normalize_obs:
-                    st = st / 255.0
-                    next_st = next_st / 255.0
+                    st = (st / 255.0).to(device)
+                    next_st = (next_st / 255.0).to(device)
+                    act = act.to(device)
+                    rew = rew.to(device)
+                    d = d.to(device)
+                    
                 loss_tuple, td_errors = agent.train_step(
                     st, act, rew, next_st, d, imp ** beta
                 )
