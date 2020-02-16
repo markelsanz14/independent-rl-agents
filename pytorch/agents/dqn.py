@@ -43,7 +43,7 @@ class DQN(object):
         else:
             print("Initializing main neural network from scratch.")
 
-    def save_checkpoint(self, step):
+    def save_checkpoint(self):
         torch.save(self.main_nn, self.save_path)
         print("Saved main_nn at {}".format(self.save_path))
 

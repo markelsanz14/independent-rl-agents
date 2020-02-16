@@ -1,14 +1,16 @@
 import os
 import time
 import argparse
+from itertools import islice
 
+import gym
 import numpy as np
 import torch
-import gym
+from torch.utils.data import DataLoader
 
 from envs import ATARI_ENVS
 from atari_wrappers import make_atari, wrap_deepmind
-from replay_buffers.uniform import UniformBuffer
+from replay_buffers.uniform import UniformBuffer, DatasetBuffer
 from networks.nature_cnn import NatureCNN
 from networks.dueling_cnn import DuelingCNN
 
@@ -53,6 +55,7 @@ def main():
     )
 
 
+@profile
 def run_env(
     env_name,
     agent_class,
@@ -94,7 +97,10 @@ def run_env(
         num_state_feats = env.observation_space.shape
         num_actions = env.action_space.n
 
-        replay_buffer = UniformBuffer(size=buffer_size)
+        # replay_buffer = UniformBuffer(size=buffer_size)
+        replay_buffer = DatasetBuffer(size=buffer_size)
+        buffer_loader = DataLoader(replay_buffer, batch_size=batch_size,
+                num_workers=2)
         if dueling:
             main_network = DuelingCNN(num_actions)
             target_network = DuelingCNN(num_actions)
@@ -165,7 +171,25 @@ def run_env(
                         batch_size
                     )
                 else:
-                    st, act, rew, next_st, d = agent.buffer.sample(batch_size)
+                    """
+                    k = 0
+                    for batch in buffer_loader:
+                        st, act, rew, next_st, d, idx = batch
+                        print(idx)
+                        print(len(idx))
+                        break
+                        k += 1
+                        if k == 5:
+                            quit()
+                    """
+                    if cur_frame % 1000 == 0:
+                        replay_buffer.shuffle_data()
+                    st, act, rew, next_st, d, idx = next(iter(buffer_loader))
+
+                    #print(d)
+                    #print('AA')
+                    #time.sleep(0.1)
+                    #st, act, rew, next_st, d = agent.buffer.sample(batch_size)
                     beta = 0.0
                 if normalize_obs:
                     st = st / 255.0
@@ -179,7 +203,7 @@ def run_env(
             
             if cur_frame % 100 == 0:
                 end = time.time()
-                # print(end-start)
+                print(end-start)
                 start = time.time()
 
             # Update value of the exploration value epsilon.
@@ -215,7 +239,7 @@ def run_env(
         if episode % 100 == 0:
             print_result(env_name, epsilon, episode, cur_frame, returns)
             returns = []
-    agent.save_checkpoint(cur_frame)
+    agent.save_checkpoint()
 
 
 def decay_epsilon(epsilon, step, initial_exp, final_exp, exp_steps):
