@@ -6,6 +6,7 @@ from itertools import islice
 import gym
 import numpy as np
 import torch
+from torch.utils.tensorboard import SummaryWriter
 from torch.utils.data import DataLoader
 
 from envs import ATARI_ENVS
@@ -89,7 +90,7 @@ def run_env(
     if env_name in ATARI_ENVS:
         env = make_atari(env_name)
         env = wrap_deepmind(
-            env, frame_stack=True, scale=False, clip_rewards=clip_rewards
+            env, frame_stack=True, scale=False, clip_rewards=False
         )
     else:
         env = gym.make(env_name)
@@ -134,10 +135,11 @@ def run_env(
     print_env_info(env, env_name, agent, main_network)
 
     # Creaete TensorBoard Metrics.
-    # log_dir = "logs/{}_{}_ClipRew{}".format(
-    #    agent_class.__name__, env_name, clip_rewards
-    # )
-    # summary_writer = tf.summary.create_file_writer(log_dir)
+    log_dir = "logs/{}_{}_ClipRew{}".format(
+       agent_class.__name__, env_name, clip_rewards
+    )
+    writer = SummaryWriter(log_dir)
+    writer.add_graph(main_network, torch.randn(1, 4, 84, 84, dtype=torch.float32))
 
     imp = np.array([1.0 for _ in range(batch_size)])
     beta = 0.7
@@ -150,7 +152,7 @@ def run_env(
     # Start learning!
     while cur_frame < num_steps:
         state = env.reset()
-        done, ep_rew = False, 0
+        done, ep_rew, clip_ep_rew = False, 0, 0
         # Start an episode.
         while not done:
             state_in = torch.tensor(
@@ -158,10 +160,13 @@ def run_env(
             ).transpose(1, 3)
             # Sample action from policy and take that action in the env.
             action = agent.take_exploration_action(state_in, env, epsilon)
-            next_state, reward, done, info = env.step(action)
+            next_state, rew, done, info = env.step(action)
+            if clip_rewards:
+                reward = np.sign(rew)
             agent.buffer.add_to_buffer(state, action, reward, next_state, done)
             cur_frame += 1
-            ep_rew += reward
+            clip_ep_rew += reward
+            ep_rew += rew
             state = next_state
 
             if cur_frame > learning_starts and cur_frame % train_freq == 0:
@@ -230,12 +235,10 @@ def run_env(
                 agent.save_checkpoint()
 
             # Add TensorBoard Summaries.
-            # if cur_frame % 100000 == 0:
-            #    with summary_writer.as_default():
-            #        tf.summary.scalar("epsilon", epsilon, step=cur_frame)
-
-        # with summary_writer.as_default():
-        #    tf.summary.scalar("return", ep_rew, step=episode)
+            if cur_frame % 100000 == 0:
+                writer.add_scalar('epsilon', epsilon, cur_frame)
+        writer.add_scalar('return', ep_rew, episode)
+        writer.add_scalar('clipped_return', clip_ep_rew, episode)
 
         episode += 1
         returns.append(ep_rew)
