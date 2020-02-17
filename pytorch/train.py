@@ -56,7 +56,6 @@ def main():
     )
 
 
-@profile
 def run_env(
     env_name,
     agent_class,
@@ -85,7 +84,6 @@ def run_env(
     """
     os.environ["CUDA_VISIBLE_DEVICES"] = "0"
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    device = 'cpu'
 
     if env_name in ATARI_ENVS:
         env = make_atari(env_name)
@@ -99,9 +97,9 @@ def run_env(
         num_state_feats = env.observation_space.shape
         num_actions = env.action_space.n
 
-        replay_buffer = UniformBuffer(size=buffer_size)
-        #replay_buffer = DatasetBuffer(size=buffer_size)
-        #buffer_loader = DataLoader(replay_buffer, batch_size=batch_size, num_workers=2)
+        #replay_buffer = UniformBuffer(size=buffer_size)
+        replay_buffer = DatasetBuffer(size=buffer_size, device=device)
+        buffer_loader = DataLoader(replay_buffer, batch_size=batch_size, num_workers=0)
         if dueling:
             main_network = DuelingCNN(num_actions).to(device)
             target_network = DuelingCNN(num_actions).to(device)
@@ -139,7 +137,7 @@ def run_env(
        agent_class.__name__, env_name, clip_rewards
     )
     writer = SummaryWriter(log_dir)
-    writer.add_graph(main_network, torch.randn(1, 4, 84, 84, dtype=torch.float32))
+    writer.add_graph(main_network, torch.randn(1, 4, 84, 84, dtype=torch.float32, device=device))
 
     imp = np.array([1.0 for _ in range(batch_size)])
     beta = 0.7
@@ -155,8 +153,8 @@ def run_env(
         done, ep_rew, clip_ep_rew = False, 0, 0
         # Start an episode.
         while not done:
-            state_in = torch.tensor(
-                np.expand_dims(state, axis=0), dtype=torch.float32
+            state_in = torch.as_tensor(
+                np.expand_dims(state, axis=0), dtype=torch.float32, device=device
             ).transpose(1, 3)
             # Sample action from policy and take that action in the env.
             action = agent.take_exploration_action(state_in, env, epsilon)
@@ -176,32 +174,14 @@ def run_env(
                         batch_size
                     )
                 else:
-                    """
-                    k = 0
-                    for batch in buffer_loader:
-                        st, act, rew, next_st, d, idx = batch
-                        print(idx)
-                        print(len(idx))
-                        break
-                        k += 1
-                        if k == 5:
-                            quit()
-                    """
-                    #if cur_frame % 1000 == 0:
-                    #    replay_buffer.shuffle_data()
-                    #st, act, rew, next_st, d, idx = next(iter(buffer_loader))
-
-                    #print(d)
-                    #print('AA')
-                    #time.sleep(0.1)
-                    st, act, rew, next_st, d = agent.buffer.sample(batch_size)
+                    if cur_frame % 1000 == 0:
+                        replay_buffer.shuffle_data()
+                    st, act, rew, next_st, d, idx = next(iter(buffer_loader))
+                    #st, act, rew, next_st, d = agent.buffer.sample(batch_size)
                     beta = 0.0
                 if normalize_obs:
-                    st = (st / 255.0).to(device)
-                    next_st = (next_st / 255.0).to(device)
-                    act = act.to(device)
-                    rew = rew.to(device)
-                    d = d.to(device)
+                    st = st / 255.0
+                    next_st = next_st / 255.0
                     
                 loss_tuple, td_errors = agent.train_step(
                     st, act, rew, next_st, d, imp ** beta
@@ -212,7 +192,7 @@ def run_env(
             
             if cur_frame % 100 == 0:
                 end = time.time()
-                print(end-start)
+                # print(end-start)
                 start = time.time()
 
             # Update value of the exploration value epsilon.
@@ -232,6 +212,7 @@ def run_env(
                 agent.target_nn.load_state_dict(agent.main_nn.state_dict())
 
             if cur_frame % save_ckpt_freq == 0 and cur_frame > learning_starts:
+                print('AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA')
                 agent.save_checkpoint()
 
             # Add TensorBoard Summaries.

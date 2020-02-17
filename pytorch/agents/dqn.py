@@ -63,7 +63,7 @@ class DQN(object):
         if result < epsilon:
             return env.action_space.sample()
         else:
-            q = self.main_nn(state).to(self.device).data.numpy()
+            q = self.main_nn(state).to(self.device).cpu().data.numpy()
             return np.argmax(q)  # Greedy action for state
 
     def train_step(
