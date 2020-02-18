@@ -76,9 +76,9 @@ class DQN(object):
         """
         # Calculate targets.
         with torch.no_grad():
-            max_next_qs = self.target_nn(next_states).to(self.device).max(-1).values
+            max_next_qs = self.target_nn(next_states).max(-1).values
             target = rewards + (1.0 - dones) * self.discount * max_next_qs
-        qs = self.main_nn(states).to(self.device)
+        qs = self.main_nn(states)
         action_masks = F.one_hot(actions, self.num_actions)
         masked_qs = (action_masks * qs).sum(dim=-1)
         td_errors = (target - masked_qs).abs()

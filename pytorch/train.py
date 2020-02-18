@@ -97,9 +97,9 @@ def run_env(
         num_state_feats = env.observation_space.shape
         num_actions = env.action_space.n
 
-        #replay_buffer = UniformBuffer(size=buffer_size)
-        replay_buffer = DatasetBuffer(size=buffer_size, device=device)
-        buffer_loader = DataLoader(replay_buffer, batch_size=batch_size, num_workers=0)
+        replay_buffer = UniformBuffer(size=buffer_size, device=device)
+        #replay_buffer = DatasetBuffer(size=buffer_size, device=device)
+        #buffer_loader = DataLoader(replay_buffer, batch_size=batch_size, num_workers=0)
         if dueling:
             main_network = DuelingCNN(num_actions).to(device)
             target_network = DuelingCNN(num_actions).to(device)
@@ -174,14 +174,16 @@ def run_env(
                         batch_size
                     )
                 else:
-                    if cur_frame % 1000 == 0:
-                        replay_buffer.shuffle_data()
-                    st, act, rew, next_st, d, idx = next(iter(buffer_loader))
-                    #st, act, rew, next_st, d = agent.buffer.sample(batch_size)
+                    #if cur_frame % 1000 == 0:
+                    #    replay_buffer.shuffle_data()
+                    #st, act, rew, next_st, d, idx = next(iter(buffer_loader))
+                    st, act, rew, next_st, d = agent.buffer.sample(batch_size)
                     beta = 0.0
                 if normalize_obs:
                     st = st / 255.0
                     next_st = next_st / 255.0
+                    print(next_st[:, 0].shape)
+                    print(next_st[:, 0].mean())
                     
                 loss_tuple, td_errors = agent.train_step(
                     st, act, rew, next_st, d, imp ** beta
@@ -212,7 +214,6 @@ def run_env(
                 agent.target_nn.load_state_dict(agent.main_nn.state_dict())
 
             if cur_frame % save_ckpt_freq == 0 and cur_frame > learning_starts:
-                print('AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA')
                 agent.save_checkpoint()
 
             # Add TensorBoard Summaries.

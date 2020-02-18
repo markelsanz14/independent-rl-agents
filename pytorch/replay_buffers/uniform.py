@@ -8,9 +8,10 @@ import torch
 class UniformBuffer(object):
     """Experience replay buffer that samples uniformly."""
 
-    def __init__(self, size):
+    def __init__(self, size, device='cpu'):
         """Initializes the buffer."""
         self.buffer = deque(maxlen=size)
+        self.device = device
 
     def add_to_buffer(self, state, action, reward, next_state, done):
         """Adds data to experience replay buffer."""
@@ -31,11 +32,11 @@ class UniformBuffer(object):
             rewards.append(reward)
             next_states.append(np.array(next_state, copy=False))
             dones.append(done)
-        states = torch.from_numpy(np.array(states)).transpose(1, 3)
-        actions = torch.from_numpy(np.array(actions))
-        rewards = torch.from_numpy(np.array(rewards, dtype=np.float32))
-        next_states = torch.from_numpy(np.array(next_states)).transpose(1, 3)
-        dones = torch.from_numpy(np.array(dones, dtype=np.float32))
+        states = torch.as_tensor(np.array(states), device=self.device).transpose(1, 3)
+        actions = torch.as_tensor(np.array(actions), device=self.device)
+        rewards = torch.as_tensor(np.array(rewards, dtype=np.float32), device=self.device)
+        next_states = torch.as_tensor(np.array(next_states), device=self.device).transpose(1, 3)
+        dones = torch.as_tensor(np.array(dones, dtype=np.float32), device=self.device)
         return states, actions, rewards, next_states, dones
 
 
