@@ -182,8 +182,6 @@ def run_env(
                 if normalize_obs:
                     st = st / 255.0
                     next_st = next_st / 255.0
-                    print(next_st[:, 0].shape)
-                    print(next_st[:, 0].mean())
                     
                 loss_tuple, td_errors = agent.train_step(
                     st, act, rew, next_st, d, imp ** beta
