@@ -1,4 +1,3 @@
-import os
 import time
 import argparse
 
@@ -34,6 +33,7 @@ def main():
     parser.add_argument("--dueling", type=int, default=0)
     parser.add_argument("--num_steps", type=int, default=int(1e7))
     parser.add_argument("--clip_rewards", type=int, default=1)
+    parser.add_argument("--buffer_size", type=int, default=int(1e5))
 
     args = parser.parse_args()
     print("Arguments received:")
@@ -46,6 +46,7 @@ def main():
     run_env(
         env_name=args.env,
         agent_class=agent_class,
+        buffer_size=args.buffer_size,
         dueling=args.dueling,
         prioritized=args.prioritized,
         clip_rewards=args.clip_rewards,
@@ -79,7 +80,6 @@ def run_env(
         prioritized: bool, whether to use prioritized experience replay.
         clip_rewards: bool, whether to clip the rewards to {-1, 0, 1} or not.
     """
-    os.environ["CUDA_VISIBLE_DEVICES"] = "0"
     gpus = tf.config.experimental.list_physical_devices("GPU")
     limit_gpu_memory = True
     if gpus:
