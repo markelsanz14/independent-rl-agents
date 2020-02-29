@@ -98,8 +98,9 @@ def run_env(
         num_state_feats = env.observation_space.shape
         num_actions = env.action_space.n
 
-        replay_buffer = DatasetUniformBuffer(size=buffer_size)
-        model_input = replay_buffer.build_iterator(batch_size)
+        replay_buffer = UniformBuffer(size=buffer_size)
+        #replay_buffer = DatasetUniformBuffer(size=buffer_size)
+        #model_input = replay_buffer.build_iterator(batch_size)
         if dueling:
             main_network = DuelingCNN(num_actions)
             target_network = DuelingCNN(num_actions)
@@ -176,7 +177,7 @@ def run_env(
                         batch_size
                     )
                 else:
-                    if type(replay_buffer).__name__ == "ReplayBuffer":
+                    if type(replay_buffer).__name__ == "UniformBuffer":
                         st, act, rew, next_st, d = agent.buffer.sample(
                             batch_size
                         )
@@ -225,7 +226,7 @@ def run_env(
 
             if cur_frame % 100 == 0:
                 end = time.time()
-                print(end-start)
+                # print(end-start)
                 start = time.time()
 
         with summary_writer.as_default():

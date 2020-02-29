@@ -72,4 +72,4 @@ class DatasetUniformBuffer(object):
             (tf.uint8, tf.int32, tf.float32, tf.uint8, tf.float32),
         )
         dataset = dataset.batch(batch_size).prefetch(3)
-        return dataset.make_one_shot_iterator()
+        return iter(dataset)
