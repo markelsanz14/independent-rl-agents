@@ -3,8 +3,8 @@ We compare the performance of the algorithms as reported in the double dqn paper
 
 This table shows the original performance vs ours implementation. Our results were collected with a replay buffer size of 1M.
 
-| Game                | DQN (paper) |           | Dueling DQN  |   | Double Dueling DQN |              |
-|---------------------|-------------|-----------|--------------|---|--------------|--------------------|
+| Game                | DQN         |           | Double DQN |     | Double Dueling DQN |              |
+|---------------------|-------------|-----------|------------|-----|--------------|--------------------|
 |                     | Paper       | Ours      | Paper     | Ours | Paper        | Paper              |
 | Alien               | 1,620       | **3,240** | 3,747     |      | 4,461              | |
 | Amidar              | **978**     | 301       | 1,793     |      | 2,354              | |
