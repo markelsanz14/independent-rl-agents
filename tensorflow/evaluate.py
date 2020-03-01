@@ -28,7 +28,7 @@ def main():
     parser.add_argument("--prioritized", type=int, default=0)
     parser.add_argument("--double_q", type=int, default=0)
     parser.add_argument("--dueling", type=int, default=0)
-    parser.add_argument("--num_steps", type=int, default=int(1e7))
+    parser.add_argument("--num_episodes", type=int, default=100)
     parser.add_argument("--epsilon", type=float, default=0.01)
 
     args = parser.parse_args()
