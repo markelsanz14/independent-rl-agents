@@ -61,9 +61,7 @@ class DoubleDQN(object):
             q = self.main_nn(state).data.numpy()
             return np.argmax(q)  # Greedy action for state
 
-    def train_step(
-        self, states, actions, rewards, next_states, dones, importances
-    ):
+    def train_step(self, states, actions, rewards, next_states, dones, importances):
         """Perform a training iteration on a batch of data sampled from the experience
         replay buffer.
         Returns:

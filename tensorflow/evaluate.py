@@ -38,7 +38,7 @@ def main():
         agent_class = DQN
         if args.double_q:
             agent_class = DoubleDQN
-    
+
     evaluate_env(
         env_name=args.env,
         agent_class=agent_class,
@@ -68,16 +68,11 @@ def evaluate_env(
     if gpus:
         for gpu in gpus:
             tf.config.experimental.set_memory_growth(gpu, True)
-        
 
     if env_name in ATARI_ENVS:
         env = make_atari(env_name)
         env = wrap_deepmind(
-            env,
-            episode_life=False,
-            frame_stack=True,
-            scale=True,
-            clip_rewards=False,
+            env, episode_life=False, frame_stack=True, scale=True, clip_rewards=False
         )
     else:
         env = gym.make(env_name)
@@ -85,7 +80,7 @@ def evaluate_env(
     if isinstance(env.action_space, gym.spaces.Discrete):
         num_state_feats = env.observation_space.shape
         num_actions = env.action_space.n
-        
+
         if dueling:
             main_network = DuelingCNN(num_actions)
             target_network = DuelingCNN(num_actions)

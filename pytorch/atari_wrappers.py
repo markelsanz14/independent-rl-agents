@@ -126,9 +126,7 @@ class MaxAndSkipEnv(gym.Wrapper):
         """Return only every `skip`-th frame"""
         gym.Wrapper.__init__(self, env)
         # most recent raw observations (for max pooling across time steps)
-        self._obs_buffer = np.zeros(
-            (2,) + env.observation_space.shape, dtype=np.uint8
-        )
+        self._obs_buffer = np.zeros((2,) + env.observation_space.shape, dtype=np.uint8)
         self._skip = skip
 
     def step(self, action):
@@ -164,9 +162,7 @@ class ClipRewardEnv(gym.RewardWrapper):
 
 
 class WarpFrame(gym.ObservationWrapper):
-    def __init__(
-        self, env, width=84, height=84, grayscale=True, dict_space_key=None
-    ):
+    def __init__(self, env, width=84, height=84, grayscale=True, dict_space_key=None):
         """
         Warp frames to 84x84 as done in the Nature paper and later work.
 
@@ -195,9 +191,7 @@ class WarpFrame(gym.ObservationWrapper):
         else:
             original_space = self.observation_space.spaces[self._key]
             self.observation_space.spaces[self._key] = new_space
-        assert (
-            original_space.dtype == np.uint8 and len(original_space.shape) == 3
-        )
+        assert original_space.dtype == np.uint8 and len(original_space.shape) == 3
 
     def observation(self, obs):
         if self._key is None:

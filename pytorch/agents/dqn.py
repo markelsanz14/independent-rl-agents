@@ -7,9 +7,6 @@ import torch.optim as optim
 import torch.nn.functional as F
 import numpy as np
 
-from replay_buffers.uniform import UniformBuffer
-from networks.nature_cnn import NatureCNN
-
 
 class DQN(object):
     """Implement the DQN algorithm and some helper methods."""
@@ -66,9 +63,7 @@ class DQN(object):
             q = self.main_nn(state).to(self.device).cpu().data.numpy()
             return np.argmax(q)  # Greedy action for state
 
-    def train_step(
-        self, states, actions, rewards, next_states, dones, importances
-    ):
+    def train_step(self, states, actions, rewards, next_states, dones, importances):
         """Perform a training iteration on a batch of data sampled from the experience
         replay buffer.
         Returns:

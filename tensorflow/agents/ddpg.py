@@ -169,29 +169,21 @@ class DDPG(object):
                 num_state_feats, num_action_feats, max_action_values
             )
             self.critic = CriticNetwork(num_state_feats, num_action_feats)
-            self.critic_target = CriticNetwork(
-                num_state_feats, num_action_feats
-            )
+            self.critic_target = CriticNetwork(num_state_feats, num_action_feats)
 
         self.actor_optimizer = tf.keras.optimizers.Adam(learning_rate=actor_lr)
-        self.critic_optimizer = tf.keras.optimizers.Adam(
-            learning_rate=critic_lr
-        )
+        self.critic_optimizer = tf.keras.optimizers.Adam(learning_rate=critic_lr)
         self.loss = tf.keras.losses.Huber()
         # Checkpoints.
         self.ckpt_main = tf.train.Checkpoint(
             step=tf.Variable(1), optimizer=self.optimizer, net=self.main_nn
         )
         self.manager_main = tf.train.CheckpointManager(
-            self.ckpt_main,
-            "./saved_models/DDPG-{}".format(env_name),
-            max_to_keep=3,
+            self.ckpt_main, "./saved_models/DDPG-{}".format(env_name), max_to_keep=3
         )
         self.ckpt_main.restore(self.manager_main.latest_checkpoint)
         if self.manager_main.latest_checkpoint:
-            print(
-                "Restored from {}".format(self.manager_main.latest_checkpoint)
-            )
+            print("Restored from {}".format(self.manager_main.latest_checkpoint))
         else:
             print("Initializing main neural network from scratch.")
 
@@ -210,27 +202,16 @@ class DDPG(object):
         act = self.actor(state) + tf.random.normal(
             shape=(self.num_action_feats,), stddev=noise_scale
         )
-        return tf.clip_by_value(
-            act, self.min_action_values, self.max_action_values
-        )[0]
+        return tf.clip_by_value(act, self.min_action_values, self.max_action_values)[0]
 
     def update_target_network(self, source_weights, target_weights, tau=0.001):
         """Updates target networks using Polyak averaging."""
-        for source_weight, target_weight in zip(
-            source_weights, target_weights
-        ):
-            target_weight.assign(
-                tau * source_weight + (1.0 - tau) * target_weight
-            )
+        for source_weight, target_weight in zip(source_weights, target_weights):
+            target_weight.assign(tau * source_weight + (1.0 - tau) * target_weight)
 
     @tf.function
     def train_step(
-        self,
-        batch_states,
-        batch_actions,
-        batch_rewards,
-        batch_next_states,
-        batch_dones,
+        self, batch_states, batch_actions, batch_rewards, batch_next_states, batch_dones
     ):
         # Calculate critic target.
         next_actions = self.actor_target(batch_next_states)
@@ -244,9 +225,7 @@ class DDPG(object):
             critic_loss = self.loss(target, qs)
 
         # Calculate and apply critic gradients.
-        critic_gradients = tape.gradient(
-            critic_loss, self.critic.trainable_variables
-        )
+        critic_gradients = tape.gradient(critic_loss, self.critic.trainable_variables)
         self.critic_optimizer.apply_gradients(
             zip(critic_gradients, self.critic.trainable_variables)
         )
@@ -258,17 +237,11 @@ class DDPG(object):
             actor_loss = -tf.reduce_mean(policy_qs)
 
         # Calculate and apply actor gradients.
-        actor_gradients = tape.gradient(
-            actor_loss, self.actor.trainable_variables
-        )
+        actor_gradients = tape.gradient(actor_loss, self.actor.trainable_variables)
         self.actor_optimizer.apply_gradients(
             zip(actor_gradients, self.actor.trainable_variables)
         )
 
-        self.update_target_network(
-            self.critic.weights, self.critic_target.weights
-        )
-        self.update_target_network(
-            self.actor.weights, self.actor_target.weights
-        )
+        self.update_target_network(self.critic.weights, self.critic_target.weights)
+        self.update_target_network(self.actor.weights, self.actor_target.weights)
         return actor_loss, critic_loss

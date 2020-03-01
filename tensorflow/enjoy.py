@@ -1,7 +1,5 @@
-import os
 import argparse
 
-import numpy as np
 import tensorflow as tf
 import gym
 
@@ -47,9 +45,7 @@ def main():
             agent_class = DuelingDQN
 
     enjoy_env(
-        env_name=args.env,
-        agent_class=agent_class,
-        num_episodes=args.num_episodes,
+        env_name=args.env, agent_class=agent_class, num_episodes=args.num_episodes
     )
 
 
@@ -68,7 +64,6 @@ def enjoy_env(
         prioritized: bool, whether to use prioritized experience replay.
         clip_rewards: bool, whether to clip the rewards to {-1, 0, 1} or not.
     """
-    os.environ["CUDA_VISIBLE_DEVICES"] = "0"
     gpus = tf.config.experimental.list_physical_devices("GPU")
     if gpus:
         for gpu in gpus:

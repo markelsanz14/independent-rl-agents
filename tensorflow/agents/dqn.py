@@ -1,12 +1,6 @@
 """Implements the DQN algorithm."""
-import random
-
 import tensorflow as tf
 import numpy as np
-
-# Modify these lines if you only need this file:
-from replay_buffers.uniform import UniformBuffer
-from networks.nature_cnn import NatureCNN
 
 
 class DQN(object):
@@ -39,9 +33,7 @@ class DQN(object):
         )
         self.manager = tf.train.CheckpointManager(
             self.ckpt,
-            "./saved_models/{}-DQN-{}".format(
-                env_name, type(main_nn).__name__
-            ),
+            "./saved_models/{}-DQN-{}".format(env_name, type(main_nn).__name__),
             max_to_keep=3,
         )
         self.ckpt.restore(self.manager.latest_checkpoint).expect_partial()
@@ -95,7 +87,5 @@ class DQN(object):
                 tf.stop_gradient(target), masked_qs
             )  # , sample_weight=importances)
         grads = tape.gradient(loss, self.main_nn.trainable_variables)
-        self.optimizer.apply_gradients(
-            zip(grads, self.main_nn.trainable_variables)
-        )
+        self.optimizer.apply_gradients(zip(grads, self.main_nn.trainable_variables))
         return (loss,), td_errors

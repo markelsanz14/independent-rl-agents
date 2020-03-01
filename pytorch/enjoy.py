@@ -1,4 +1,3 @@
-import os
 import argparse
 
 import numpy as np
@@ -47,9 +46,7 @@ def main():
             agent_class = DuelingDQN
 
     enjoy_env(
-        env_name=args.env,
-        agent_class=agent_class,
-        num_episodes=args.num_episodes,
+        env_name=args.env, agent_class=agent_class, num_episodes=args.num_episodes
     )
 
 

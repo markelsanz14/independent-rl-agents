@@ -1,10 +1,6 @@
-import random
-from collections import deque
-
+"""Implements the Double DQN algorithm."""
 import numpy as np
 import tensorflow as tf
-
-from envs import ATARI_ENVS
 
 
 class DoubleDQN(object):
@@ -37,9 +33,7 @@ class DoubleDQN(object):
         )
         self.manager = tf.train.CheckpointManager(
             self.ckpt,
-            "./saved_models/{}-DQN-{}".format(
-                env_name, type(main_nn).__name__
-            ),
+            "./saved_models/{}-DQN-{}".format(env_name, type(main_nn).__name__),
             max_to_keep=3,
         )
         self.ckpt.restore(self.manager.latest_checkpoint).expect_partial()
@@ -85,9 +79,7 @@ class DoubleDQN(object):
         next_qs_argmax = tf.argmax(next_qs_main, axis=-1)
         next_action_mask = tf.one_hot(next_qs_argmax, self.num_actions)
         next_qs_target = self.target_nn(next_states)
-        masked_next_qs = tf.reduce_sum(
-            next_action_mask * next_qs_target, axis=-1
-        )
+        masked_next_qs = tf.reduce_sum(next_action_mask * next_qs_target, axis=-1)
         target = rewards + (1.0 - dones) * self.discount * masked_next_qs
         with tf.GradientTape() as tape:
             qs = self.main_nn(states)
@@ -96,7 +88,5 @@ class DoubleDQN(object):
             td_errors = target - masked_qs
             loss = self.loss(target, masked_qs)
         grads = tape.gradient(loss, self.main_nn.trainable_variables)
-        self.optimizer.apply_gradients(
-            zip(grads, self.main_nn.trainable_variables)
-        )
+        self.optimizer.apply_gradients(zip(grads, self.main_nn.trainable_variables))
         return (loss,), td_errors

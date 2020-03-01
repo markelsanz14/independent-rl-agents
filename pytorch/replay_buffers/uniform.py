@@ -4,11 +4,11 @@ from collections import deque
 import numpy as np
 import torch
 
-    
+
 class UniformBuffer(object):
     """Experience replay buffer that samples uniformly."""
 
-    def __init__(self, size, device='cpu'):
+    def __init__(self, size, device="cpu"):
         """Initializes the buffer."""
         self.buffer = deque(maxlen=size)
         self.device = device
@@ -19,7 +19,7 @@ class UniformBuffer(object):
 
     def __len__(self):
         return len(self.buffer)
-    
+
     def sample(self, num_samples):
         """Samples num_sample elements from the buffer."""
         states, actions, rewards, next_states, dones = [], [], [], [], []
@@ -34,14 +34,18 @@ class UniformBuffer(object):
             dones.append(done)
         states = torch.as_tensor(np.array(states), device=self.device).transpose(1, 3)
         actions = torch.as_tensor(np.array(actions), device=self.device)
-        rewards = torch.as_tensor(np.array(rewards, dtype=np.float32), device=self.device)
-        next_states = torch.as_tensor(np.array(next_states), device=self.device).transpose(1, 3)
+        rewards = torch.as_tensor(
+            np.array(rewards, dtype=np.float32), device=self.device
+        )
+        next_states = torch.as_tensor(
+            np.array(next_states), device=self.device
+        ).transpose(1, 3)
         dones = torch.as_tensor(np.array(dones, dtype=np.float32), device=self.device)
         return states, actions, rewards, next_states, dones
 
 
 class DatasetBuffer(torch.utils.data.IterableDataset):
-    def __init__(self, size, device='cpu'):
+    def __init__(self, size, device="cpu"):
         super(DatasetBuffer).__init__()
         self.buffer = deque(maxlen=size)
         self.device = device
@@ -59,14 +63,16 @@ class DatasetBuffer(torch.utils.data.IterableDataset):
     def sample_gen(self, start, end):
         while True:
             states, actions, rewards, next_states, dones = [], [], [], [], []
-            #idx = np.random.choice(end-start, self.batch_size // num_workers) + start
-            i = np.random.randint(end-start) + start
+            # idx = np.random.choice(end-start, self.batch_size // num_workers) + start
+            i = np.random.randint(end - start) + start
             elem = self.buffer[i]
             state, action, reward, next_state, done = elem
             states = torch.from_numpy(np.array(state, copy=False)).transpose(0, 2)
             actions = torch.from_numpy(np.array(action, copy=False))
             rewards = torch.from_numpy(np.array(reward, dtype=np.float32))
-            next_states = torch.from_numpy(np.array(next_state, copy=False)).transpose(0, 2)
+            next_states = torch.from_numpy(np.array(next_state, copy=False)).transpose(
+                0, 2
+            )
             dones = torch.from_numpy(np.array(done, dtype=np.float32))
             yield states, actions, rewards, next_states, dones, i
 
@@ -74,15 +80,25 @@ class DatasetBuffer(torch.utils.data.IterableDataset):
         self.buffer = random.sample(self.buffer, k=len(self.buffer))
 
     def sample_gen2(self, start, end, worker_id, num_workers):
-        #self.idx = np.random.randint(end-start, size=end-start) + start
-        for index, elem in enumerate(islice(self.buffer, worker_id, len(self.buffer), num_workers)):
-            #elem = self.buffer[i]
+        # self.idx = np.random.randint(end-start, size=end-start) + start
+        for index, elem in enumerate(
+            islice(self.buffer, worker_id, len(self.buffer), num_workers)
+        ):
+            # elem = self.buffer[i]
             state, action, reward, next_state, done = elem
-            states = torch.as_tensor(np.array(state, copy=False), device=self.device).transpose(0, 2)
+            states = torch.as_tensor(
+                np.array(state, copy=False), device=self.device
+            ).transpose(0, 2)
             actions = torch.as_tensor(np.array(action, copy=False), device=self.device)
-            rewards = torch.as_tensor(np.array(reward, dtype=np.float32), device=self.device)
-            next_states = torch.as_tensor(np.array(next_state, copy=False), device=self.device).transpose(0, 2)
-            dones = torch.as_tensor(np.array(done, dtype=np.float32), device=self.device)
+            rewards = torch.as_tensor(
+                np.array(reward, dtype=np.float32), device=self.device
+            )
+            next_states = torch.as_tensor(
+                np.array(next_state, copy=False), device=self.device
+            ).transpose(0, 2)
+            dones = torch.as_tensor(
+                np.array(done, dtype=np.float32), device=self.device
+            )
             yield states, actions, rewards, next_states, dones, index
 
     def __iter__(self):

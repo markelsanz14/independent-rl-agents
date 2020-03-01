@@ -1,17 +1,20 @@
 import os
-import time
+
+# import time
 import argparse
-from itertools import islice
 
 import gym
 import numpy as np
 import torch
 from torch.utils.tensorboard import SummaryWriter
-from torch.utils.data import DataLoader
+
+# from torch.utils.data import DataLoader
 
 from envs import ATARI_ENVS
 from atari_wrappers import make_atari, wrap_deepmind
-from replay_buffers.uniform import UniformBuffer, DatasetBuffer
+from replay_buffers.uniform import UniformBuffer
+
+# from replay_buffers.uniform import UniformBuffer, DatasetBuffer
 from networks.nature_cnn import NatureCNN
 from networks.dueling_cnn import DuelingCNN
 
@@ -70,7 +73,7 @@ def run_env(
     initial_exploration=1.0,
     final_exploration=0.01,
     exploration_steps=int(2e6),
-    learning_starts=50,#int(1e4),
+    learning_starts=50,  # int(1e4),
     train_freq=1,
     target_update_freq=int(1e5),
     save_ckpt_freq=int(1e6),
@@ -87,9 +90,7 @@ def run_env(
 
     if env_name in ATARI_ENVS:
         env = make_atari(env_name)
-        env = wrap_deepmind(
-            env, frame_stack=True, scale=False, clip_rewards=False
-        )
+        env = wrap_deepmind(env, frame_stack=True, scale=False, clip_rewards=False)
     else:
         env = gym.make(env_name)
 
@@ -98,8 +99,9 @@ def run_env(
         num_actions = env.action_space.n
 
         replay_buffer = UniformBuffer(size=buffer_size, device=device)
-        #replay_buffer = DatasetBuffer(size=buffer_size, device=device)
-        #buffer_loader = DataLoader(replay_buffer, batch_size=batch_size, num_workers=0)
+        # replay_buffer = DatasetBuffer(size=buffer_size, device=device)
+        # buffer_loader =
+        # DataLoader(replay_buffer, batch_size=batch_size, num_workers=0)
         if dueling:
             main_network = DuelingCNN(num_actions).to(device)
             target_network = DuelingCNN(num_actions).to(device)
@@ -134,10 +136,12 @@ def run_env(
 
     # Creaete TensorBoard Metrics.
     log_dir = "logs/{}_{}_ClipRew{}".format(
-       agent_class.__name__, env_name, clip_rewards
+        agent_class.__name__, env_name, clip_rewards
     )
     writer = SummaryWriter(log_dir)
-    writer.add_graph(main_network, torch.randn(1, 4, 84, 84, dtype=torch.float32, device=device))
+    writer.add_graph(
+        main_network, torch.randn(1, 4, 84, 84, dtype=torch.float32, device=device)
+    )
 
     imp = np.array([1.0 for _ in range(batch_size)])
     beta = 0.7
@@ -145,7 +149,7 @@ def run_env(
     epsilon = initial_exploration
     returns = []
     cur_frame, episode = 0, 0
-    start = time.time()
+    # start = time.time()
 
     # Start learning!
     while cur_frame < num_steps:
@@ -174,26 +178,28 @@ def run_env(
                         batch_size
                     )
                 else:
-                    #if cur_frame % 1000 == 0:
+                    # if cur_frame % 1000 == 0:
                     #    replay_buffer.shuffle_data()
-                    #st, act, rew, next_st, d, idx = next(iter(buffer_loader))
+                    # st, act, rew, next_st, d, idx = next(iter(buffer_loader))
                     st, act, rew, next_st, d = agent.buffer.sample(batch_size)
                     beta = 0.0
                 if normalize_obs:
                     st = st / 255.0
                     next_st = next_st / 255.0
-                    
+
                 loss_tuple, td_errors = agent.train_step(
                     st, act, rew, next_st, d, imp ** beta
                 )
                 if prioritized:
                     # Update priorities
                     agent.buffer.update_priorities(indx, td_errors)
-            
+
+            """
             if cur_frame % 100 == 0:
                 end = time.time()
                 # print(end-start)
                 start = time.time()
+            """
 
             # Update value of the exploration value epsilon.
             epsilon = decay_epsilon(
@@ -204,10 +210,7 @@ def run_env(
                 exploration_steps,
             )
 
-            if (
-                cur_frame % target_update_freq == 0
-                and cur_frame > learning_starts
-            ):
+            if cur_frame % target_update_freq == 0 and cur_frame > learning_starts:
                 # Copy weights from main to target network.
                 agent.target_nn.load_state_dict(agent.main_nn.state_dict())
 
@@ -216,9 +219,9 @@ def run_env(
 
             # Add TensorBoard Summaries.
             if cur_frame % 100000 == 0:
-                writer.add_scalar('epsilon', epsilon, cur_frame)
-        writer.add_scalar('return', ep_rew, episode)
-        writer.add_scalar('clipped_return', clip_ep_rew, episode)
+                writer.add_scalar("epsilon", epsilon, cur_frame)
+        writer.add_scalar("return", ep_rew, episode)
+        writer.add_scalar("clipped_return", clip_ep_rew, episode)
 
         episode += 1
         returns.append(ep_rew)

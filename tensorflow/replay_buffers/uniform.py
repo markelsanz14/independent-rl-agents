@@ -68,8 +68,7 @@ class DatasetUniformBuffer(object):
 
     def build_iterator(self, batch_size):
         dataset = tf.data.Dataset.from_generator(
-            self.sample_gen,
-            (tf.uint8, tf.int32, tf.float32, tf.uint8, tf.float32),
+            self.sample_gen, (tf.uint8, tf.int32, tf.float32, tf.uint8, tf.float32)
         )
         dataset = dataset.batch(batch_size).prefetch(3)
         return iter(dataset)

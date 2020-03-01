@@ -1,40 +1,9 @@
-import random
 import os
-from collections import deque
 
-import numpy as np
 import torch
 import torch.nn as nn
 import torch.optim as optim
 import torch.nn.functional as F
-
-
-class ReplayBuffer(object):
-    """Experience replay buffer that samples uniformly."""
-
-    def __init__(self, size):
-        """Initializes the buffer."""
-        self.buffer = deque(maxlen=size)
-
-    def add_to_buffer(self, state, action, reward, next_state, done):
-        """Adds data to experience replay buffer."""
-        self.buffer.append((state, action, reward, next_state, done))
-
-    def __len__(self):
-        return len(self.buffer)
-
-    def sample(self, num_samples):
-        """Samples num_sample elements from the buffer."""
-        batch = random.sample(self.buffer, num_samples)
-        states, actions, rewards, next_states, dones = list(zip(*batch))
-        states = torch.tensor(states, dtype=torch.float32).transpose(1, 3)
-        actions = torch.tensor(actions, dtype=torch.int64)
-        rewards = torch.tensor(rewards, dtype=torch.float32)
-        next_states = torch.tensor(next_states, dtype=torch.float32).transpose(
-            1, 3
-        )
-        dones = torch.tensor(dones, dtype=torch.float32)
-        return states, actions, rewards, next_states, dones
 
 
 class CriticNetworkConv(nn.Module):
@@ -106,9 +75,7 @@ class ActorNetworkConv(nn.Module):
         x = F.relu(self.fc1(x.view(x.size(0), -1)))  # Flatten input.
         x = self.out(x)
         action = x * self.max_action_values
-        action_clamped = action.clamp(
-            self.min_action_values, self.max_action_values
-        )
+        action_clamped = action.clamp(self.min_action_values, self.max_action_values)
         return action_clamped
 
 
@@ -156,6 +123,7 @@ class DDPG(object):
         num_action_feats,
         min_action_values,
         max_action_values,
+        replay_buffer=None,
         actor_lr=1e-4,
         critic_lr=1e-4,
         buffer_size=100000,
@@ -167,7 +135,7 @@ class DDPG(object):
         self.max_action_values = max_action_values
 
         self.discount = discount
-        self.buffer = ReplayBuffer(buffer_size)
+        self.buffer = replay_buffer
 
         if env_name == "CarRacing-v0":
             self.actor = ActorNetworkConv(
@@ -186,14 +154,10 @@ class DDPG(object):
                 num_state_feats, num_action_feats, max_action_values
             )
             self.critic = CriticNetwork(num_state_feats, num_action_feats)
-            self.critic_target = CriticNetwork(
-                num_state_feats, num_action_feats
-            )
+            self.critic_target = CriticNetwork(num_state_feats, num_action_feats)
 
         self.actor_optimizer = optim.Adam(self.actor.parameters(), lr=actor_lr)
-        self.critic_optimizer = optim.Adam(
-            self.critic.parameters(), lr=critic_lr
-        )
+        self.critic_optimizer = optim.Adam(self.critic.parameters(), lr=critic_lr)
         self.loss_fn = nn.SmoothL1Loss()  # Huber loss.
 
         self.save_path = "./saved_models/DQN-{}.pt".format(env_name)
@@ -203,48 +167,31 @@ class DDPG(object):
 
     def save_checkpoint(self, step):
         torch.save(self.main_nn, self.save_path)
-        print(
-            "Saved main_nn checkpoint for step {}: {}".format(
-                step, self.save_path
-            )
-        )
+        print("Saved main_nn checkpoint for step {}: {}".format(step, self.save_path))
 
     def take_exploration_action(self, state, noise_scale=0.1):
         """Takes action using self.actor network and adding noise for
         exploration."""
         act = self.actor(state) + torch.distributions.Normal(
             loc=(torch.tensor([0.0 for _ in range(self.num_action_feats)])),
-            scale=torch.tensor(
-                [noise_scale for _ in range(self.num_action_feats)]
-            ),
+            scale=torch.tensor([noise_scale for _ in range(self.num_action_feats)]),
         )
         return act.clamp(self.min_action_values, self.max_action_values)[0]
 
     def update_target_network(self, source_weights, target_weights, tau=0.001):
         """Updates target networks using Polyak averaging."""
-        for source_weight, target_weight in zip(
-            source_weights, target_weights
-        ):
-            target_weight.data.copy_(
-                tau * source_weight + (1.0 - tau) * target_weight
-            )
+        for source_weight, target_weight in zip(source_weights, target_weights):
+            target_weight.data.copy_(tau * source_weight + (1.0 - tau) * target_weight)
 
     def train_step(
-        self,
-        batch_states,
-        batch_actions,
-        batch_rewards,
-        batch_next_states,
-        batch_dones,
+        self, batch_states, batch_actions, batch_rewards, batch_next_states, batch_dones
     ):
         # Calculate critic target.
         with torch.no_grad():
             next_actions = self.actor_target(batch_next_states)
             next_qs = self.critic_target((batch_next_states, next_actions))
             next_qs = next_qs.view(-1)
-            target = (
-                batch_rewards + (1.0 - batch_dones) * self.discount * next_qs
-            )
+            target = batch_rewards + (1.0 - batch_dones) * self.discount * next_qs
         # Calculate critic loss.
         qs = self.critic((batch_states, batch_actions))
         qs = qs.view(-1)

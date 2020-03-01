@@ -1,4 +1,5 @@
-import time
+"""Main entry point. Used to train the agents on some env."""
+# import time
 import argparse
 
 import numpy as np
@@ -32,6 +33,7 @@ def main():
     parser.add_argument("--num_steps", type=int, default=int(1e7))
     parser.add_argument("--clip_rewards", type=int, default=1)
     parser.add_argument("--buffer_size", type=int, default=int(1e5))
+    parser.add_argument("--use_dataset_buffer", type=int, default=0)
 
     args = parser.parse_args()
     print("Arguments received:")
@@ -49,6 +51,7 @@ def main():
         prioritized=args.prioritized,
         clip_rewards=args.clip_rewards,
         num_steps=args.num_steps,
+        use_dataset_buffer=args.use_dataset_buffer,
     )
 
 
@@ -62,6 +65,7 @@ def run_env(
     clip_rewards=True,
     normalize_obs=True,
     num_steps=int(1e6),
+    use_dataset_buffer=False,
     batch_size=32,
     initial_exploration=1.0,
     final_exploration=0.01,
@@ -86,9 +90,7 @@ def run_env(
 
     if env_name in ATARI_ENVS:
         env = make_atari(env_name)
-        env = wrap_deepmind(
-            env, frame_stack=True, scale=False, clip_rewards=False
-        )
+        env = wrap_deepmind(env, frame_stack=True, scale=False, clip_rewards=False)
     else:
         env = gym.make(env_name)
 
@@ -96,9 +98,12 @@ def run_env(
         num_state_feats = env.observation_space.shape
         num_actions = env.action_space.n
 
-        replay_buffer = UniformBuffer(size=buffer_size)
-        #replay_buffer = DatasetUniformBuffer(size=buffer_size)
-        #model_input = replay_buffer.build_iterator(batch_size)
+        if use_dataset_buffer:
+            replay_buffer = DatasetUniformBuffer(size=buffer_size)
+            model_input = replay_buffer.build_iterator(batch_size)
+        else:
+            replay_buffer = UniformBuffer(size=buffer_size)
+
         if dueling:
             main_network = DuelingCNN(num_actions)
             target_network = DuelingCNN(num_actions)
@@ -149,7 +154,7 @@ def run_env(
     returns, clipped_returns = [], []
     cur_frame, episode = 0, 0
 
-    start = time.time()
+    # start = time.time()
     # Start learning!
     while cur_frame < num_steps:
         state = env.reset()
@@ -176,9 +181,7 @@ def run_env(
                     )
                 else:
                     if type(replay_buffer).__name__ == "UniformBuffer":
-                        st, act, rew, next_st, d = agent.buffer.sample(
-                            batch_size
-                        )
+                        st, act, rew, next_st, d = agent.buffer.sample(batch_size)
                     else:
                         st, act, rew, next_st, d = next(model_input)
                     beta = 0.0
@@ -201,10 +204,7 @@ def run_env(
                 exploration_steps,
             )
 
-            if (
-                cur_frame % target_update_freq == 0
-                and cur_frame > learning_starts
-            ):
+            if cur_frame % target_update_freq == 0 and cur_frame > learning_starts:
                 # Copy weights from main to target network.
                 agent.target_nn.set_weights(agent.main_nn.get_weights())
 
@@ -222,10 +222,12 @@ def run_env(
                         name="trace", step=cur_frame, profiler_outdir=log_dir
                     )
 
+            """
             if cur_frame % 100 == 0:
                 end = time.time()
                 # print(end-start)
                 start = time.time()
+            """
 
         with summary_writer.as_default():
             tf.summary.scalar("clipped_return", clipped_ep_rew, step=episode)
@@ -256,9 +258,7 @@ def print_result(env_name, epsilon, episode, step, returns, clipped_returns):
     print("| Episode: {:>19d}   |".format(episode))
     print("| Steps: {:>21d}   |".format(step))
     print("| Last 100 return: {:>11.2f}   |".format(np.mean(returns)))
-    print(
-        "| Clipped 100 return: {:>8.2f}   |".format(np.mean(clipped_returns))
-    )
+    print("| Clipped 100 return: {:>8.2f}   |".format(np.mean(clipped_returns)))
     print("----------------------------------")
 
 
