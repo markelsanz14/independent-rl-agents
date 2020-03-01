@@ -12,10 +12,10 @@ This table shows the original performance vs ours implementation. Our results we
 | Asterix             | 4,359       | **5,380** | 17,356    |      | 28,188             | |
 | Asteroids           | 1,364       |           | 734 vs    |      | 2,837              | |
 | Atlantis            | 279,987     |           | 106,056   |      | 382,572            | |
-| Bank Heist          | 455 vs      |           | 1,030     |      | 1,611              | |
+| Bank Heist          | 455         | **926**   | 1,030     |      | 1,611              | |
 | Battle Zone         | 29,900      |           | 31,700    |      | 37,150             | |
 | Beam Rider          | 8,627       |           | 13,772    |      | 12,164             | |
-| Berzerk             | 585         |           | 1,225     |      | 1,472              | |
+| Berzerk             | 585         | **1,362** | 1,225     |      | 1,472              | |
 | Bowling             | 50          |           | 68.1      |      | 65.5               | |
 | Boxing              | 88          |           | 91.6      |      | 99.4               | |
 | Breakout            | **385**     | 219       | 418       |      | 345                | |
