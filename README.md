@@ -27,6 +27,8 @@ If additional improvements are possible, please open an issue or submit a pull r
 | SAC                      | Planned for future                | Model-Free, Off-Policy, Actor-Critic | Both         | [Paper](https://arxiv.org/pdf/1812.05905.pdf) |
 
 ### How to use:
+TLDR; take a network and a buffer, and pass them to an agent! As simple as that!
+
 The pytroch and tensorflow folderst contain the same code and algorithms.
 Inside each of them you will find:
 
