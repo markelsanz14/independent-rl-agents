@@ -1,4 +1,3 @@
-import os
 import argparse
 
 import numpy as np
@@ -27,11 +26,11 @@ def main():
         "--env", type=str, choices=ATARI_ENVS, default="BreakoutNoFrameskip-v4"
     )
     parser.add_argument("--agent", type=str, choices=["DQN"], default="DQN")
-    parser.add_argument("--prioritized", type=bool, default=False)
-    parser.add_argument("--double_q", type=bool, default=False)
-    parser.add_argument("--dueling", type=bool, default=False)
-    parser.add_argument("--num_episodes", type=int, default=20)
-    parser.add_argument("--clip_rewards", type=bool, default=False)
+    parser.add_argument("--prioritized", type=int, default=0)
+    parser.add_argument("--double_q", type=int, default=0)
+    parser.add_argument("--dueling", type=int, default=0)
+    parser.add_argument("--num_steps", type=int, default=int(1e7))
+    parser.add_argument("--epsilon", type=float, default=0.01)
 
     args = parser.parse_args()
     print("Arguments received:")
@@ -39,16 +38,14 @@ def main():
     if args.agent == "DQN":
         agent_class = DQN
         if args.double_q:
-            if args.dueling:
-                agent_class = DoubleDuelingDQN
-            else:
-                agent_class = DoubleDQN
-        elif args.dueling:
-            agent_class = DuelingDQN
-
+            agent_class = DoubleDQN
+    
     evaluate_env(
         env_name=args.env,
         agent_class=agent_class,
+        epsilon=args.epsilon,
+        dueling=args.dueling,
+        prioritized=args.prioritized,
         num_episodes=args.num_episodes,
     )
 
@@ -56,9 +53,9 @@ def main():
 def evaluate_env(
     env_name,
     agent_class,
-    epsilon=0.1,
+    epsilon=0.01,
+    dueling=False,
     prioritized=False,
-    clip_rewards=False,
     num_episodes=20,
 ):
     """Runs an agent in a single environment to evaluate its performance.
@@ -68,11 +65,11 @@ def evaluate_env(
         prioritized: bool, whether to use prioritized experience replay.
         clip_rewards: bool, whether to clip the rewards to {-1, 0, 1} or not.
     """
-    os.environ["CUDA_VISIBLE_DEVICES"] = "4"
     gpus = tf.config.experimental.list_physical_devices("GPU")
     if gpus:
         for gpu in gpus:
             tf.config.experimental.set_memory_growth(gpu, True)
+        
 
     if env_name in ATARI_ENVS:
         env = make_atari(env_name)
@@ -81,7 +78,7 @@ def evaluate_env(
             episode_life=False,
             frame_stack=True,
             scale=True,
-            clip_rewards=clip_rewards,
+            clip_rewards=False,
         )
     else:
         env = gym.make(env_name)
@@ -89,8 +86,19 @@ def evaluate_env(
     if isinstance(env.action_space, gym.spaces.Discrete):
         num_state_feats = env.observation_space.shape
         num_actions = env.action_space.n
+        
+        if dueling:
+            main_network = DuelingCNN(num_actions)
+            target_network = DuelingCNN(num_actions)
+        else:
+            main_network = NatureCNN(num_actions)
+            target_network = NatureCNN(num_actions)
+
         agent = agent_class(
-            env_name, num_state_feats, num_actions, prioritized=prioritized
+            env_name=env_name,
+            num_actions=num_actions,
+            main_nn=main_network,
+            target_nn=target_network,
         )
     else:
         num_state_feats = env.observation_space.shape
@@ -106,7 +114,6 @@ def evaluate_env(
         )
 
     returns = []
-    episode = 0
     for episode in range(num_episodes):
         state = env.reset()
         done, ep_rew = False, 0
@@ -121,7 +128,6 @@ def evaluate_env(
         print("Epiosde {} return: {}".format(episode, ep_rew))
 
     print_result(env_name, returns)
-    returns = []
 
 
 def print_result(env_name, returns):
