@@ -18,7 +18,7 @@ class DQN(object):
         num_actions,
         main_nn,
         target_nn,
-        replay_buffer,
+        replay_buffer=None,
         lr=1e-5,
         discount=0.99,
         batch_size=32,
