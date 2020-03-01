@@ -10,8 +10,6 @@ from atari_wrappers import make_atari, wrap_deepmind
 from replay_buffers.uniform import UniformBuffer, DatasetUniformBuffer
 from networks.nature_cnn import NatureCNN
 from networks.dueling_cnn import DuelingCNN
-
-# from agents.ddpg import DDPG
 from agents.dqn import DQN
 from agents.double_dqn import DoubleDQN
 

@@ -7,11 +7,10 @@ import gym
 from envs import ATARI_ENVS
 from atari_wrappers import make_atari, wrap_deepmind
 
-# from agents.ddpg import DDPG
+from networks.nature_cnn import NatureCNN
+from networks.dueling_cnn import DuelingCNN
 from agents.dqn import DQN
 from agents.double_dqn import DoubleDQN
-from agents.double_dueling_dqn import DoubleDuelingDQN
-from agents.dueling_dqn import DuelingDQN
 
 
 def main():
