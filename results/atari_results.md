@@ -3,15 +3,15 @@ We compare the performance of the algorithms as reported in the double dqn paper
 
 This table shows the original performance vs ours implementation. Our results were collected with a replay buffer size of 1M.
 
-| Game                | DQN         |            | Double DQN |     | Double Dueling DQN |              |
-|---------------------|-------------|------------|------------|-----|--------------|--------------------|
-|                     | Paper       | Ours       | Paper     | Ours | Paper        | Paper              |
-| Alien               | 1,620       | **3,240**  | 3,747     |      | 4,461              | |
-| Amidar              | **978**     | 301        | 1,793     |      | 2,354              | |
-| Assault             | **4,280**   | 1,582      | 5,393     |      | 4,621              | |
-| Asterix             | 4,359       | **5,380**  | 17,356    |      | 28,188             | |
-| Asteroids           | 1,364       |            | 734 vs    |      | 2,837              | |
-| Atlantis            | 279,987     |            | 106,056   |      | 382,572            | |
+| Game                | DQN         |               | Double DQN |     | Double Dueling DQN |              |
+|---------------------|-------------|---------------|------------|-----|--------------|--------------------|
+|                     | Paper       | Ours          | Paper     | Ours | Paper        | Paper              |
+| Alien               | 1,620       | **3,240**     | 3,747     |      | 4,461              | |
+| Amidar              | **978**     | 301           | 1,793     |      | 2,354              | |
+| Assault             | **4,280**   | 1,582         | 5,393     |      | 4,621              | |
+| Asterix             | 4,359       | **5,380**     | 17,356    |      | 28,188             | |
+| Asteroids           | 1,364       |               | 734 vs    |      | 2,837              | |
+| Atlantis            | 279,987     | **2,883,892** | 106,056   |      | 382,572            | |
 | Bank Heist          | 455         | **926**    | 1,030     |      | 1,611              | |
 | Battle Zone         | **29,900**  | 23,650     | 31,700    |      | 37,150             | |
 | Beam Rider          | 8,627       | **12,681** | 13,772    |      | 12,164             | |
@@ -22,7 +22,6 @@ This table shows the original performance vs ours implementation. Our results we
 | Centipede           | 4,657       |            | 5,409     |      | 7,561              | |
 | Chopper Command     | 6,126       |            | 5,809     |      | 11,215             | |
 | Crazy Climber       | 110,763     |            | 117,282   |      | 143,570            | |
-| Defender            | 23,633      |            | 35,338    |      | 42,214             | |
 | Demon Attack        | 12,149      |            | 58,044    |      | 60,813             | |
 | Double Dunk         | -6.6        |            | -5.5      |      | 0.1                | |
 | Enduro              | 729         |            | 1,211     |      | 2,258              | |
@@ -53,7 +52,6 @@ This table shows the original performance vs ours implementation. Our results we
 | Solaris             | 3,482       |            | 3,067     |      | 2,250              | |
 | Space Invaders      | 1,692       |            | 2,525     |      | 6,427              | |
 | Star Gunner         | 54,282      |            | 60,142    |      | 89,238             | |
-| Surround            | -5.6        |            | -2.9      |      | 4.4                | |
 | Tennis              | 12.2        |            | -22.8     |      | 5.1                | |
 | Time Pilot          | 4,870       |            | 8,339     |      | 11,666             | |
 | Tutankham           | 68.1        |            | 218       |      | 211                | |
