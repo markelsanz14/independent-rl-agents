@@ -40,6 +40,7 @@ def main():
     parser.add_argument("--dueling", type=int, default=0)
     parser.add_argument("--num_steps", type=int, default=int(1e7))
     parser.add_argument("--clip_rewards", type=int, default=1)
+    parser.add_argument("--buffer_size", type=int, default=int(1e5))
 
     args = parser.parse_args()
     print("Arguments received:")
@@ -52,6 +53,7 @@ def main():
     run_env(
         env_name=args.env,
         agent_class=agent_class,
+        buffer_size=args.buffer_size,
         dueling=args.dueling,
         prioritized=args.prioritized,
         clip_rewards=args.clip_rewards,
@@ -70,12 +72,12 @@ def run_env(
     normalize_obs=True,
     num_steps=int(1e6),
     batch_size=32,
-    initial_exploration=1.0,
+    initial_exploration=0.1,
     final_exploration=0.01,
     exploration_steps=int(2e6),
     learning_starts=50,  # int(1e4),
     train_freq=1,
-    target_update_freq=int(1e5),
+    target_update_freq=int(1e4),
     save_ckpt_freq=int(1e6),
 ):
     """Runs an agent in a single environment to evaluate its performance.
@@ -108,6 +110,8 @@ def run_env(
         else:
             main_network = NatureCNN(num_actions).to(device)
             target_network = NatureCNN(num_actions).to(device)
+        target_network.load_state_dict(main_network.state_dict())
+        target_network.eval()
 
         agent = agent_class(
             env_name,
@@ -187,12 +191,13 @@ def run_env(
                     st = st / 255.0
                     next_st = next_st / 255.0
 
-                loss_tuple, td_errors = agent.train_step(
+                loss_tuple = agent.train_step(
                     st, act, rew, next_st, d, imp ** beta
                 )
                 if prioritized:
                     # Update priorities
-                    agent.buffer.update_priorities(indx, td_errors)
+                    #agent.buffer.update_priorities(indx, td_errors)
+                    pass
 
             """
             if cur_frame % 100 == 0:

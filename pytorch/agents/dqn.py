@@ -70,16 +70,13 @@ class DQN(object):
             loss: float, the loss value of the current training step.
         """
         # Calculate targets.
-        with torch.no_grad():
-            max_next_qs = self.target_nn(next_states).max(-1).values
-            target = rewards + (1.0 - dones) * self.discount * max_next_qs
-        qs = self.main_nn(states)
-        action_masks = F.one_hot(actions, self.num_actions)
-        masked_qs = (action_masks * qs).sum(dim=-1)
-        td_errors = (target - masked_qs).abs()
-        loss = self.loss_fn(masked_qs, target)  # sample_weight=importances
-        nn.utils.clip_grad_norm_(loss, max_norm=10)
+        # with torch.no_grad():
+        max_next_qs = self.target_nn(next_states).max(-1).values.detach()
+        target = rewards + (1.0 - dones) * self.discount * max_next_qs
+        masked_qs = self.main_nn(states).gather(1, actions.view(-1, 1))
+        loss = self.loss_fn(masked_qs.squeeze(), target.detach())  # sample_weight=importances
+        #nn.utils.clip_grad_norm_(loss, max_norm=10)
         self.optimizer.zero_grad()
         loss.backward()
         self.optimizer.step()
-        return (loss,), td_errors
+        return (loss,)
