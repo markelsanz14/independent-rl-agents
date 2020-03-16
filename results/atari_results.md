@@ -22,16 +22,16 @@ This table shows the original performance vs ours implementation. Our results we
 | Chopper Command     | 6,126       |            | 5,809     |      | 11,215             | |
 | Crazy Climber       | 110,763     |            | 117,282   |      | 143,570            | |
 | Demon Attack        | 12,149      |            | 58,044    |      | 60,813             | |
-| Double Dunk         | -6.6        |            | -5.5      |      | 0.1                | |
+| Double Dunk         | -6.6        | **-3.6**     | -5.5      |      | 0.1                | |
 | Enduro              | 729         |            | 1,211     |      | 2,258              | |
 | Fishing Derby       | -4.9        | **44.1**     | 15.5      |      | 46.4               | |
-| Freeway             | 30.8        |              | 33.3      |      | 0.0                | |
+| Freeway             | 30.8        | **33.6**     | 33.3      |      | 0.0                | |
 | Frostbite           | **797**     | 295.1        | 1,683     |      | 4,672              | |
 | Gopher              | 8,777       |            | 14,840    |      | 15,718             | |
 | Gravitar            | 473         | **747**      | 412       |      | 588                | |
 | HERO                | 20,437      |            | 20,130    |      | 20,818             | |
 | Ice Hockey          | -1.9        |            | -2.7      |      | 0.5                | |
-| James Bond          | 768         |            | 1,358     |      | 1,312              | |
+| James Bond          | 768         | **5,165**    | 1,358     |      | 1,312              | |
 | Kangaroo            | 7,259       |            | 12,992    |      | 14,854             | |
 | Krull               | 8,422       |            | 7,920     |      | 11,451             | |
 | Kung-Fu Master      | 26,059      |            | 29,710    |      | 34,294             | |
