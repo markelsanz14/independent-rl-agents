@@ -1,5 +1,5 @@
 ### Algorithm implementation performance on Atari games:
-We compare the performance of the algorithms as reported in the double dqn paper ([wang et al. 2015](https://arxiv.org/pdf/1511.06581.pdf)) with ours for the different Atari Games.
+We compare the performance of the algorithms as reported in the dueling dqn paper ([wang et al. 2015](https://arxiv.org/pdf/1511.06581.pdf)) with ours for the different Atari Games.
 
 This table shows the original performance vs ours implementation. Our results were collected with a replay buffer size of 1M.
 
