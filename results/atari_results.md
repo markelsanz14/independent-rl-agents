@@ -5,7 +5,7 @@ This table shows the original performance vs ours implementation. Our results we
 
 | Game                | DQN         |               | Double DQN |     | Double Dueling DQN |              |
 |---------------------|-------------|---------------|------------|-----|--------------|--------------------|
-|                     | Paper       | Ours          | Paper     | Ours | Paper        | Paper              |
+|                     | Paper       | Ours (TF)     | Paper     | Ours | Paper        | Paper              |
 | Alien               | 1,620       | **3,240**     | 3,747     |      | 4,461              | |
 | Amidar              | **978**     | 301           | 1,793     |      | 2,354              | |
 | Assault             | **4,280**   | 1,582         | 5,393     |      | 4,621              | |
