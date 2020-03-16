@@ -10,7 +10,6 @@ This table shows the original performance vs ours implementation. Our results we
 | Amidar              | **978**     | 301           | 1,793     |      | 2,354              | |
 | Assault             | **4,280**   | 1,582         | 5,393     |      | 4,621              | |
 | Asterix             | 4,359       | **5,380**     | 17,356    |      | 28,188             | |
-| Asteroids           | 1,364       |               | 734 vs    |      | 2,837              | |
 | Atlantis            | 279,987     | **2,883,892** | 106,056   |      | 382,572            | |
 | Bank Heist          | 455         | **926**    | 1,030     |      | 1,611              | |
 | Battle Zone         | **29,900**  | 23,650     | 31,700    |      | 37,150             | |
