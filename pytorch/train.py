@@ -1,5 +1,3 @@
-import os
-
 # import time
 import argparse
 
@@ -72,7 +70,7 @@ def run_env(
     normalize_obs=True,
     num_steps=int(1e6),
     batch_size=32,
-    initial_exploration=0.1,
+    initial_exploration=1.0,
     final_exploration=0.01,
     exploration_steps=int(2e6),
     learning_starts=50,  # int(1e4),
@@ -87,7 +85,6 @@ def run_env(
         prioritized: bool, whether to use prioritized experience replay.
         clip_rewards: bool, whether to clip the rewards to {-1, 0, 1} or not.
     """
-    os.environ["CUDA_VISIBLE_DEVICES"] = "0"
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     if env_name in ATARI_ENVS:
