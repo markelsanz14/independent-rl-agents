@@ -54,9 +54,9 @@ This table shows the original performance vs ours implementation. Our results we
 | Tennis              | 12.2        | **23.0**      | -22.8     |      | 5.1                | |
 | Time Pilot          | 4,870       | **7,063**     | 8,339     |      | 11,666             | |
 | Tutankham           | 68.1        |            | 218       |      | 211                | |
-| Up and Down         | 9,989       |            | 22,972    |      | 44,939             | |
-| Venture             | 163         |            | 98.0      |      | 497                | |
+| Up and Down         | 9,989       | **17,632**    | 22,972    |      | 44,939             | |
+| Venture             | 163         | **592**       | 98.0      |      | 497                | |
 | Video Pinball       | 196,760     |            | 309,941   |      | 98,209             | |
-| Wizard Of Wor       | 2,704       |            | 7,492     |      | 7,855              | |
-| Yars' Revenge       | 18,098      |            | 11,712    |      | 49,622             | |
-| Zaxxon              | 5,363       |            | 10,163    |      | 12,944             | |
+| Wizard Of Wor       | 2,704       | **4,896**     | 7,492     |      | 7,855              | |
+| Yars' Revenge       | 18,098      | **25,575**    | 11,712    |      | 49,622             | |
+| Zaxxon              | 5,363       | **10,526**    | 10,163    |      | 12,944             | |
