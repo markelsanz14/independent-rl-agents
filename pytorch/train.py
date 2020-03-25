@@ -1,5 +1,3 @@
-import os
-
 # import time
 import argparse
 
@@ -40,6 +38,7 @@ def main():
     parser.add_argument("--dueling", type=int, default=0)
     parser.add_argument("--num_steps", type=int, default=int(1e7))
     parser.add_argument("--clip_rewards", type=int, default=1)
+    parser.add_argument("--buffer_size", type=int, default=int(1e5))
 
     args = parser.parse_args()
     print("Arguments received:")
@@ -52,6 +51,7 @@ def main():
     run_env(
         env_name=args.env,
         agent_class=agent_class,
+        buffer_size=args.buffer_size,
         dueling=args.dueling,
         prioritized=args.prioritized,
         clip_rewards=args.clip_rewards,
@@ -75,7 +75,7 @@ def run_env(
     exploration_steps=int(2e6),
     learning_starts=50,  # int(1e4),
     train_freq=1,
-    target_update_freq=int(1e5),
+    target_update_freq=int(1e4),
     save_ckpt_freq=int(1e6),
 ):
     """Runs an agent in a single environment to evaluate its performance.
@@ -85,7 +85,6 @@ def run_env(
         prioritized: bool, whether to use prioritized experience replay.
         clip_rewards: bool, whether to clip the rewards to {-1, 0, 1} or not.
     """
-    os.environ["CUDA_VISIBLE_DEVICES"] = "0"
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     if env_name in ATARI_ENVS:
@@ -108,6 +107,8 @@ def run_env(
         else:
             main_network = NatureCNN(num_actions).to(device)
             target_network = NatureCNN(num_actions).to(device)
+        target_network.load_state_dict(main_network.state_dict())
+        target_network.eval()
 
         agent = agent_class(
             env_name,
@@ -187,12 +188,13 @@ def run_env(
                     st = st / 255.0
                     next_st = next_st / 255.0
 
-                loss_tuple, td_errors = agent.train_step(
+                loss_tuple = agent.train_step(
                     st, act, rew, next_st, d, imp ** beta
                 )
                 if prioritized:
                     # Update priorities
-                    agent.buffer.update_priorities(indx, td_errors)
+                    #agent.buffer.update_priorities(indx, td_errors)
+                    pass
 
             """
             if cur_frame % 100 == 0:
