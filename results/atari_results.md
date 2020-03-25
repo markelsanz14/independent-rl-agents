@@ -1,7 +1,9 @@
 ### Algorithm implementation performance on Atari games:
 We compare the performance of the algorithms as reported in the dueling dqn paper ([wang et al. 2015](https://arxiv.org/pdf/1511.06581.pdf)) with ours for the different Atari Games.
 
-This table shows the original performance vs ours implementation. Our results were collected with a replay buffer size of 1M.
+This table shows the original performance vs ours implementation. Our results were collected with a **replay 
+buffer size of 1M**, and **setting the terminal_on_life_loss to False only during evaluation**, so that the agent 
+can keep playing until it loses all its lives. See the code for more details.
 
 | Game                | DQN         |               | Double DQN |     | Double Dueling DQN |              |
 |---------------------|-------------|---------------|------------|-----|--------------|--------------------|
@@ -56,7 +58,7 @@ This table shows the original performance vs ours implementation. Our results we
 | Tutankham           | 68.1        |            | 218       |      | 211                | |
 | Up and Down         | 9,989       | **17,632**    | 22,972    |      | 44,939             | |
 | Venture             | 163         | **592**       | 98.0      |      | 497                | |
-| Video Pinball       | 196,760     |            | 309,941   |      | 98,209             | |
+| Video Pinball       | 196,760     | **248,178**   | 309,941   |      | 98,209             | |
 | Wizard Of Wor       | 2,704       | **4,896**     | 7,492     |      | 7,855              | |
 | Yars' Revenge       | 18,098      | **25,575**    | 11,712    |      | 49,622             | |
 | Zaxxon              | 5,363       | **10,526**    | 10,163    |      | 12,944             | |
