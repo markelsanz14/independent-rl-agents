@@ -1,5 +1,5 @@
 """Main entry point. Used to train the agents on some env."""
-# import time
+import time
 import argparse
 
 import numpy as np
@@ -154,7 +154,7 @@ def run_env(
     returns, clipped_returns = [], []
     cur_frame, episode = 0, 0
 
-    # start = time.time()
+    start = time.time()
     # Start learning!
     while cur_frame < num_steps:
         state = env.reset()
@@ -221,11 +221,10 @@ def run_env(
                     tf.summary.trace_export(
                         name="trace", step=cur_frame, profiler_outdir=log_dir
                     )
-
             """
             if cur_frame % 100 == 0:
                 end = time.time()
-                # print(end-start)
+                print(end-start)
                 start = time.time()
             """
 
