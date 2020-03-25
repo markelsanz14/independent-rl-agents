@@ -50,7 +50,7 @@ can keep playing until it loses all its lives. See the code for more details.
 | Robotank            | **63.9**    | 61.1          | 65.1      |      | 65.3               | |
 | Seaquest            | 5,860       | **33,141**    | 16,452    |      | 50,254             | |
 | Skiing              | -13,062     | -17,476       | -9,021    |      | -8,857             | |
-| Solaris             | 3,482       |            | 3,067     |      | 2,250              | |
+| Solaris             | **3,482**   | 1,002         | 3,067     |      | 2,250              | |
 | Space Invaders      | 1,692       | **1,974**     | 2,525     |      | 6,427              | |
 | Star Gunner         | 54,282      | **63,604**    | 60,142    |      | 89,238             | |
 | Tennis              | 12.2        | **23.0**      | -22.8     |      | 5.1                | |
