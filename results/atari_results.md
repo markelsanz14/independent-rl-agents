@@ -20,7 +20,7 @@ can keep playing until it loses all its lives. See the code for more details.
 | Bowling             | **50**      | 33.6          | 68.1      |      | 65.5               | |
 | Boxing              | 88          | **98.3**      | 91.6      |      | 99.4               | |
 | Breakout            | **385**     | 219           | 418       |      | 345                | |
-| Centipede           | 4,657       |            | 5,409     |      | 7,561              | |
+| Centipede           | **4,657**   | 2,982         | 5,409     |      | 7,561              | |
 | Chopper Command     | 6,126       |            | 5,809     |      | 11,215             | |
 | Crazy Climber       | 110,763     |            | 117,282   |      | 143,570            | |
 | Demon Attack        | 12,149      |            | 58,044    |      | 60,813             | |
@@ -55,7 +55,7 @@ can keep playing until it loses all its lives. See the code for more details.
 | Star Gunner         | 54,282      | **63,604**    | 60,142    |      | 89,238             | |
 | Tennis              | 12.2        | **23.0**      | -22.8     |      | 5.1                | |
 | Time Pilot          | 4,870       | **7,063**     | 8,339     |      | 11,666             | |
-| Tutankham           | 68.1        |            | 218       |      | 211                | |
+| Tutankham           | 68.1        | **210.4**     | 218       |      | 211                | |
 | Up and Down         | 9,989       | **17,632**    | 22,972    |      | 44,939             | |
 | Venture             | 163         | **592**       | 98.0      |      | 497                | |
 | Video Pinball       | 196,760     | **248,178**   | 309,941   |      | 98,209             | |
