@@ -21,9 +21,9 @@ can keep playing until it loses all its lives. See the code for more details.
 | Boxing              | 88          | **98.3**      | 91.6      |      | 99.4               | |
 | Breakout            | **385**     | 219           | 418       |      | 345                | |
 | Centipede           | **4,657**   | 2,982         | 5,409     |      | 7,561              | |
-| Chopper Command     | 6,126       |            | 5,809     |      | 11,215             | |
+| Chopper Command     | **6,126**   | 1,063         | 5,809     |      | 11,215             | |
 | Crazy Climber       | 110,763     | **138,626**   | 117,282   |      | 143,570            | |
-| Demon Attack        | 12,149      |            | 58,044    |      | 60,813             | |
+| Demon Attack        | 12,149      | **268,832***  | 58,044    |      | 60,813             | |
 | Double Dunk         | -6.6        | **-3.6**      | -5.5      |      | 0.1                | |
 | Enduro              | 729         | **1,770**     | 1,211     |      | 2,258              | |
 | Fishing Derby       | -4.9        | **44.1**      | 15.5      |      | 46.4               | |
