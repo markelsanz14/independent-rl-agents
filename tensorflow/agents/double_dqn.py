@@ -12,7 +12,7 @@ class DoubleDQN(object):
         num_actions,
         main_nn,
         target_nn,
-        replay_buffer,
+        replay_buffer=None,
         lr=1e-5,
         discount=0.99,
         batch_size=32,
@@ -33,7 +33,7 @@ class DoubleDQN(object):
         )
         self.manager = tf.train.CheckpointManager(
             self.ckpt,
-            "./saved_models/{}-DQN-{}".format(env_name, type(main_nn).__name__),
+            "./saved_models/{}-DoubleDQN-{}".format(env_name, type(main_nn).__name__),
             max_to_keep=3,
         )
         self.ckpt.restore(self.manager.latest_checkpoint).expect_partial()

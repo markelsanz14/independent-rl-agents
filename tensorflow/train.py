@@ -221,10 +221,9 @@ def run_env(
                     tf.summary.trace_export(
                         name="trace", step=cur_frame, profiler_outdir=log_dir
                     )
-
             if cur_frame % 100 == 0:
                 end = time.time()
-                print(end-start)
+                #print(end-start)
                 start = time.time()
 
         with summary_writer.as_default():

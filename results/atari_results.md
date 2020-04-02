@@ -1,7 +1,9 @@
 ### Algorithm implementation performance on Atari games:
 We compare the performance of the algorithms as reported in the dueling dqn paper ([wang et al. 2015](https://arxiv.org/pdf/1511.06581.pdf)) with ours for the different Atari Games.
 
-This table shows the original performance vs ours implementation. Our results were collected with a replay buffer size of 1M.
+This table shows the original performance vs ours implementation. Our results were collected with a **replay 
+buffer size of 1M**, and **setting the terminal_on_life_loss to False only during evaluation**, so that the agent 
+can keep playing until it loses all its lives. See the code for more details.
 
 | Game                | DQN         |               | Double DQN |     | Double Dueling DQN |              |
 |---------------------|-------------|---------------|------------|-----|--------------|--------------------|
@@ -18,10 +20,10 @@ This table shows the original performance vs ours implementation. Our results we
 | Bowling             | **50**      | 33.6          | 68.1      |      | 65.5               | |
 | Boxing              | 88          | **98.3**      | 91.6      |      | 99.4               | |
 | Breakout            | **385**     | 219           | 418       |      | 345                | |
-| Centipede           | 4,657       |            | 5,409     |      | 7,561              | |
-| Chopper Command     | 6,126       |            | 5,809     |      | 11,215             | |
-| Crazy Climber       | 110,763     |            | 117,282   |      | 143,570            | |
-| Demon Attack        | 12,149      |            | 58,044    |      | 60,813             | |
+| Centipede           | **4,657**   | 2,982         | 5,409     |      | 7,561              | |
+| Chopper Command     | **6,126**   | 1,063         | 5,809     |      | 11,215             | |
+| Crazy Climber       | 110,763     | **146,901**   | 117,282   |      | 143,570            | |
+| Demon Attack        | 12,149      | **231,195**   | 58,044    |      | 60,813             | |
 | Double Dunk         | -6.6        | **-3.6**      | -5.5      |      | 0.1                | |
 | Enduro              | 729         | **1,770**     | 1,211     |      | 2,258              | |
 | Fishing Derby       | -4.9        | **44.1**      | 15.5      |      | 46.4               | |
@@ -48,15 +50,15 @@ This table shows the original performance vs ours implementation. Our results we
 | Robotank            | **63.9**    | 61.1          | 65.1      |      | 65.3               | |
 | Seaquest            | 5,860       | **33,141**    | 16,452    |      | 50,254             | |
 | Skiing              | -13,062     | -17,476       | -9,021    |      | -8,857             | |
-| Solaris             | 3,482       |            | 3,067     |      | 2,250              | |
+| Solaris             | **3,482**   | 1,002         | 3,067     |      | 2,250              | |
 | Space Invaders      | 1,692       | **1,974**     | 2,525     |      | 6,427              | |
 | Star Gunner         | 54,282      | **63,604**    | 60,142    |      | 89,238             | |
 | Tennis              | 12.2        | **23.0**      | -22.8     |      | 5.1                | |
 | Time Pilot          | 4,870       | **7,063**     | 8,339     |      | 11,666             | |
-| Tutankham           | 68.1        |            | 218       |      | 211                | |
-| Up and Down         | 9,989       |            | 22,972    |      | 44,939             | |
-| Venture             | 163         |            | 98.0      |      | 497                | |
-| Video Pinball       | 196,760     |            | 309,941   |      | 98,209             | |
-| Wizard Of Wor       | 2,704       |            | 7,492     |      | 7,855              | |
-| Yars' Revenge       | 18,098      |            | 11,712    |      | 49,622             | |
-| Zaxxon              | 5,363       |            | 10,163    |      | 12,944             | |
+| Tutankham           | 68.1        | **210.4**     | 218       |      | 211                | |
+| Up and Down         | 9,989       | **17,632**    | 22,972    |      | 44,939             | |
+| Venture             | 163         | **592**       | 98.0      |      | 497                | |
+| Video Pinball       | 196,760     | **248,178**   | 309,941   |      | 98,209             | |
+| Wizard Of Wor       | 2,704       | **4,896**     | 7,492     |      | 7,855              | |
+| Yars' Revenge       | 18,098      | **25,575**    | 11,712    |      | 49,622             | |
+| Zaxxon              | 5,363       | **10,526**    | 10,163    |      | 12,944             | |
