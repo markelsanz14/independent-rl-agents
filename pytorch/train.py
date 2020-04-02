@@ -1,9 +1,10 @@
-# import time
+import time
 import argparse
 
 import gym
 import numpy as np
 import torch
+from torch import nn
 from torch.utils.tensorboard import SummaryWriter
 
 # from torch.utils.data import DataLoader
@@ -73,7 +74,7 @@ def run_env(
     initial_exploration=1.0,
     final_exploration=0.01,
     exploration_steps=int(2e6),
-    learning_starts=50,  # int(1e4),
+    learning_starts=50,#int(1e4),
     train_freq=1,
     target_update_freq=int(1e4),
     save_ckpt_freq=int(1e6),
@@ -107,6 +108,8 @@ def run_env(
         else:
             main_network = NatureCNN(num_actions).to(device)
             target_network = NatureCNN(num_actions).to(device)
+        #main_network.apply(NatureCNN.init_weights)
+
         target_network.load_state_dict(main_network.state_dict())
         target_network.eval()
 
@@ -140,9 +143,9 @@ def run_env(
         agent_class.__name__, env_name, clip_rewards
     )
     writer = SummaryWriter(log_dir)
-    writer.add_graph(
-        main_network, torch.randn(1, 4, 84, 84, dtype=torch.float32, device=device)
-    )
+    #writer.add_graph(
+    #    main_network, torch.randn(1, 4, 84, 84, dtype=torch.float32, device=device)
+    #)
 
     imp = np.array([1.0 for _ in range(batch_size)])
     beta = 0.7
@@ -150,23 +153,28 @@ def run_env(
     epsilon = initial_exploration
     returns = []
     cur_frame, episode = 0, 0
-    # start = time.time()
+    start = time.time()
 
     # Start learning!
-    while cur_frame < num_steps:
+    while cur_frame <= num_steps:
         state = env.reset()
         done, ep_rew, clip_ep_rew = False, 0, 0
         # Start an episode.
         while not done:
             state_in = torch.as_tensor(
-                np.expand_dims(state, axis=0), dtype=torch.float32, device=device
-            ).transpose(1, 3)
+                    np.expand_dims(state, axis=0).transpose(0, 3, 2, 1),
+                    dtype=torch.float32,
+                    device=device
+            )
+            if normalize_obs:
+                state_in = torch.div(state_in, 255.) 
             # Sample action from policy and take that action in the env.
             action = agent.take_exploration_action(state_in, env, epsilon)
             next_state, rew, done, info = env.step(action)
             if clip_rewards:
                 reward = np.sign(rew)
             agent.buffer.add_to_buffer(state, action, reward, next_state, done)
+
             cur_frame += 1
             clip_ep_rew += reward
             ep_rew += rew
@@ -185,9 +193,8 @@ def run_env(
                     st, act, rew, next_st, d = agent.buffer.sample(batch_size)
                     beta = 0.0
                 if normalize_obs:
-                    st = st / 255.0
-                    next_st = next_st / 255.0
-
+                    st = torch.div(st, 255.).to(device)
+                    next_st = torch.div(next_st, 255.).to(device)
                 loss_tuple = agent.train_step(
                     st, act, rew, next_st, d, imp ** beta
                 )
@@ -195,13 +202,10 @@ def run_env(
                     # Update priorities
                     #agent.buffer.update_priorities(indx, td_errors)
                     pass
-
-            """
             if cur_frame % 100 == 0:
                 end = time.time()
                 # print(end-start)
                 start = time.time()
-            """
 
             # Update value of the exploration value epsilon.
             epsilon = decay_epsilon(

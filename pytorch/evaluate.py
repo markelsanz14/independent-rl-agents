@@ -8,10 +8,10 @@ from envs import ATARI_ENVS
 from atari_wrappers import make_atari, wrap_deepmind
 
 # from agents.ddpg import DDPG
+from networks.nature_cnn import NatureCNN
+from networks.dueling_cnn import DuelingCNN
 from agents.dqn import DQN
 from agents.double_dqn import DoubleDQN
-from agents.double_dueling_dqn import DoubleDuelingDQN
-from agents.dueling_dqn import DuelingDQN
 
 
 def main():
@@ -38,15 +38,10 @@ def main():
     if args.agent == "DQN":
         agent_class = DQN
         if args.double_q:
-            if args.dueling:
-                agent_class = DoubleDuelingDQN
-            else:
-                agent_class = DoubleDQN
-        elif args.dueling:
-            agent_class = DuelingDQN
+            agent_class = DoubleDQN
 
     evaluate_env(
-        env_name=args.env, agent_class=agent_class, num_episodes=args.num_episodes
+        env_name=args.env, agent_class=agent_class, dueling=args.dueling, num_episodes=args.num_episodes
     )
 
 
@@ -54,6 +49,7 @@ def evaluate_env(
     env_name,
     agent_class,
     epsilon=0.01,
+    dueling=False,
     prioritized=False,
     clip_rewards=False,
     num_episodes=20,
@@ -65,6 +61,8 @@ def evaluate_env(
         prioritized: bool, whether to use prioritized experience replay.
         clip_rewards: bool, whether to clip the rewards to {-1, 0, 1} or not.
     """
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
     if env_name in ATARI_ENVS:
         env = make_atari(env_name)
         env = wrap_deepmind(
@@ -74,10 +72,19 @@ def evaluate_env(
         env = gym.make(env_name)
 
     if isinstance(env.action_space, gym.spaces.Discrete):
-        num_state_feats = env.observation_space.shape
         num_actions = env.action_space.n
+        if dueling:
+            main_network = DuelingCNN(num_actions).to(device)
+            target_network = DuelingCNN(num_actions).to(device)
+        else:
+            main_network = NatureCNN(num_actions).to(device)
+            target_network = NatureCNN(num_actions).to(device)
+
         agent = agent_class(
-            env_name, num_state_feats, num_actions, prioritized=prioritized
+            env_name=env_name,
+            num_actions=num_actions,
+            main_nn=main_network,
+            target_nn=target_network,
         )
     else:
         num_state_feats = env.observation_space.shape
@@ -100,7 +107,7 @@ def evaluate_env(
         while not done:
             state_in = torch.tensor(
                 np.expand_dims(state, axis=0), dtype=torch.float32
-            ).transpose(1, 3)
+            ).transpose(1, 3).to(device)
             # Sample action from policy and take that action in the env.
             action = agent.take_exploration_action(state_in, env, epsilon)
             next_state, reward, done, info = env.step(action)

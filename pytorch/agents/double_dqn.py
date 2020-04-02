@@ -16,7 +16,7 @@ class DoubleDQN(object):
         num_actions,
         main_nn,
         target_nn,
-        replay_buffer,
+        replay_buffer=None,
         lr=1e-5,
         discount=0.99,
         batch_size=32,
@@ -39,7 +39,7 @@ class DoubleDQN(object):
         else:
             print("Initializing main neural network from scratch.")
 
-    def save_checkpoint(self, step):
+    def save_checkpoint(self):
         torch.save(self.main_nn, self.save_path)
         print("Saved main_nn at {}".format(self.save_path))
 
@@ -58,7 +58,7 @@ class DoubleDQN(object):
         if result < epsilon:
             return env.action_space.sample()
         else:
-            q = self.main_nn(state).data.numpy()
+            q = self.main_nn(state).cpu().data.numpy()
             return np.argmax(q)  # Greedy action for state
 
     def train_step(self, states, actions, rewards, next_states, dones, importances):
@@ -68,19 +68,24 @@ class DoubleDQN(object):
             loss: float, the loss value of the current training step.
         """
         # Calculate targets.
-        with torch.no_grad():
-            next_qs_argmax = self.main_nn(next_states).argmax(dim=-1)
-            next_action_mask = F.one_hot(next_qs_argmax, self.num_actions)
-            next_qs_target = self.target_nn(next_states)
-            masked_next_qs = (next_action_mask * next_qs_target).sum(dim=-1)
-            target = rewards + (1.0 - dones) * self.discount * masked_next_qs
+        next_qs = self.main_nn(next_states)
+        next_qs_argmax = next_qs.argmax(dim=-1)#self.main_nn(next_states).argmax(dim=-1)
+        next_action_mask = F.one_hot(next_qs_argmax, self.num_actions)
+        next_qs_target = self.target_nn(next_states)
+        masked_next_qs = (next_action_mask * next_qs_target).sum(dim=-1)
+        target = rewards + (1.0 - dones) * self.discount * masked_next_qs
         qs = self.main_nn(states)
         action_masks = F.one_hot(actions, self.num_actions)
         masked_qs = (action_masks * qs).sum(dim=-1)
-        td_errors = (target - masked_qs).abs()
-        loss = self.loss_fn(masked_qs, target)  # sample_weight=importances
-        nn.utils.clip_grad_norm_(loss, max_norm=10)
+        #print('masked_qs')
+        #print(masked_qs)
+        #print('target')
+        #print(target)
+        #print()
+        #td_errors = (target - masked_qs).abs()
+        loss = self.loss_fn(masked_qs, target.detach())  # sample_weight=importances
+        #nn.utils.clip_grad_norm_(loss, max_norm=10)
         self.optimizer.zero_grad()
         loss.backward()
         self.optimizer.step()
-        return (loss,), td_errors
+        return (loss,)#, td_errors

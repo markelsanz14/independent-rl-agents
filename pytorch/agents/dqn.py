@@ -60,7 +60,7 @@ class DQN(object):
         if result < epsilon:
             return env.action_space.sample()
         else:
-            q = self.main_nn(state).to(self.device).cpu().data.numpy()
+            q = self.main_nn(state).cpu().data.numpy()
             return np.argmax(q)  # Greedy action for state
 
     def train_step(self, states, actions, rewards, next_states, dones, importances):
@@ -75,7 +75,7 @@ class DQN(object):
         target = rewards + (1.0 - dones) * self.discount * max_next_qs
         masked_qs = self.main_nn(states).gather(1, actions.view(-1, 1))
         loss = self.loss_fn(masked_qs.squeeze(), target.detach())  # sample_weight=importances
-        #nn.utils.clip_grad_norm_(loss, max_norm=10)
+        nn.utils.clip_grad_norm_(loss, max_norm=10)
         self.optimizer.zero_grad()
         loss.backward()
         self.optimizer.step()

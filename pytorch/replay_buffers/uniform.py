@@ -32,14 +32,14 @@ class UniformBuffer(object):
             rewards.append(reward)
             next_states.append(np.array(next_state, copy=False))
             dones.append(done)
-        states = torch.as_tensor(np.array(states), device=self.device).transpose(1, 3)
+        states = torch.as_tensor(np.array(states).transpose(0, 3, 2, 1), device=self.device)
         actions = torch.as_tensor(np.array(actions), device=self.device)
         rewards = torch.as_tensor(
-            np.array(rewards, dtype=np.float32), device=self.device
+                np.array(rewards, dtype=np.float32), device=self.device
         )
         next_states = torch.as_tensor(
-            np.array(next_states), device=self.device
-        ).transpose(1, 3)
+                np.array(next_states).transpose(0, 3, 2, 1), device=self.device
+        )
         dones = torch.as_tensor(np.array(dones, dtype=np.float32), device=self.device)
         return states, actions, rewards, next_states, dones
 

@@ -1,5 +1,5 @@
 """Main entry point. Used to train the agents on some env."""
-# import time
+import time
 import argparse
 
 import numpy as np
@@ -33,7 +33,7 @@ def main():
     parser.add_argument("--num_steps", type=int, default=int(1e7))
     parser.add_argument("--clip_rewards", type=int, default=1)
     parser.add_argument("--buffer_size", type=int, default=int(1e5))
-    parser.add_argument("--use_dataset_buffer", type=int, default=0)
+    parser.add_argument("--use_dataset_buffer", type=int, default=1)
 
     args = parser.parse_args()
     print("Arguments received:")
@@ -154,7 +154,7 @@ def run_env(
     returns, clipped_returns = [], []
     cur_frame, episode = 0, 0
 
-    # start = time.time()
+    start = time.time()
     # Start learning!
     while cur_frame < num_steps:
         state = env.reset()
@@ -222,12 +222,10 @@ def run_env(
                         name="trace", step=cur_frame, profiler_outdir=log_dir
                     )
 
-            """
             if cur_frame % 100 == 0:
                 end = time.time()
-                # print(end-start)
+                print(end-start)
                 start = time.time()
-            """
 
         with summary_writer.as_default():
             tf.summary.scalar("clipped_return", clipped_ep_rew, step=episode)
