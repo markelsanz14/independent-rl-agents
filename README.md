@@ -8,23 +8,22 @@ performance, but they are separate from the algorithms. The main idea is to have
 algorithms that are independent from the application and easy to adapt to new 
 environemnts.
 
-You will need to select a replay_buffer, a network, and an agent from the different
-directories, and they will work together. Scripts are added for quick experimentation.
+**You will need to select a replay_buffer, a network, and an agent from the different
+directories, and they will work together. Scripts are added for quick experimentation.**
 
 All the algorithms have been implemented in both Tensorflow 2.0 and PyTorch (not working yet).
 The algorithms have been optimized for performance and support GPUs for faster training.
 If additional improvements are possible, please open an issue or submit a pull request.
 
 ### Current status:
-| Algorithm                | Status                            | Type of Algorithm                    | Action Space | Link |
-|--------------------------|-----------------------------------|--------------------------------------|--------------|------------|
-| DQN                      | :heavy_check_mark: Ready          | Model-Free, Off-Policy, Value-Based  | Discrete     | [Paper](https://www.cs.toronto.edu/~vmnih/docs/dqn.pdf) |
-| Double-DQN                | :heavy_check_mark: Not Tested     | Model-Free, Off-Policy, Value-Based  | Discrete     | [Paper](https://www.aaai.org/ocs/index.php/AAAI/AAAI16/paper/view/12389/11847) |
-| Dueling-DQN              | :heavy_check_mark: Not Tested     | Model-Free, Off-Policy, Value-Based  | Discrete     |  |
-| Double-Dueling-DQN       | :heavy_check_mark: Not Tested     | Model-Free, Off-Policy, Value-Based  | Discrete     | [Paper](https://arxiv.org/pdf/1511.06581.pdf) |
-| Simplest Policy Gradient | :x: Not implemented yet           | Model-Free, On-Policy, Policy-Based  | Both         |  |
-| DDPG                     | Not Working                       | Model-Free, Off-Policy, Actor-Critic | Continuous   | [Paper](https://arxiv.org/pdf/1509.02971.pdf) |
-| SAC                      | Planned for future                | Model-Free, Off-Policy, Actor-Critic | Both         | [Paper](https://arxiv.org/pdf/1812.05905.pdf) |
+| Algorithm   | Status                   | Type of Algorithm                    | Action Space | Link       |
+|-------------|--------------------------|--------------------------------------|--------------|------------|
+| DQN         | :heavy_check_mark: Ready | Model-Free, Off-Policy, Value-Based  | Discrete     | [Paper](https://www.cs.toronto.edu/~vmnih/docs/dqn.pdf) |
+| Double-DQN  | :heavy_check_mark: Ready | Model-Free, Off-Policy, Value-Based  | Discrete     | [Paper](https://www.aaai.org/ocs/index.php/AAAI/AAAI16/paper/view/12389/11847) |
+| Dueling-DQN | :heavy_check_mark: Ready | Model-Free, Off-Policy, Value-Based  | Discrete     | [Paper](https://arxiv.org/pdf/1511.06581.pdf) |
+| REINFORCE   | :x: Not implemented yet  | Model-Free, On-Policy, Policy-Based  | Both         |  |
+| DDPG        | Not Working              | Model-Free, Off-Policy, Actor-Critic | Continuous   | [Paper](https://arxiv.org/pdf/1509.02971.pdf) |
+| SAC         | Planned for future       | Model-Free, Off-Policy, Actor-Critic | Both         | [Paper](https://arxiv.org/pdf/1812.05905.pdf) |
 
 ### How to use:
 TLDR; take a network and a buffer, and pass them to an agent! As simple as that!
