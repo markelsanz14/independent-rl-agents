@@ -70,7 +70,7 @@ def run_env(
     initial_exploration=1.0,
     final_exploration=0.01,
     exploration_steps=int(2e6),
-    learning_starts=int(1e4),
+    learning_starts=40,#int(1e4),
     train_freq=1,
     target_update_freq=int(1e5),
     save_ckpt_freq=int(1e6),
@@ -139,7 +139,7 @@ def run_env(
         agent_class.__name__, type(main_network).__name__, env_name, clip_rewards
     )
     summary_writer = tf.summary.create_file_writer(log_dir)
-    profile = False
+    profile = True
     tf.summary.trace_on(graph=True, profiler=False)
     agent.main_nn(np.random.randn(1, 84, 84, 4))
     with summary_writer.as_default():
@@ -217,6 +217,7 @@ def run_env(
                     tf.summary.scalar("epsilon", epsilon, step=cur_frame)
 
             if cur_frame == 100 and profile:
+                print("lkgjslkgj;slfkgjs;lfkgjs;lkfgjs;lkgj")
                 with summary_writer.as_default():
                     tf.summary.trace_export(
                         name="trace", step=cur_frame, profiler_outdir=log_dir

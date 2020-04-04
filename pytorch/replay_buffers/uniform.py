@@ -10,12 +10,19 @@ class UniformBuffer(object):
 
     def __init__(self, size, device="cpu"):
         """Initializes the buffer."""
-        self.buffer = deque(maxlen=size)
+        #self.buffer = deque(maxlen=size)
+        self._size = size
+        self.buffer = []
         self.device = device
+        self._next_idx = 0
 
-    def add_to_buffer(self, state, action, reward, next_state, done):
+    def add(self, state, action, reward, next_state, done):
         """Adds data to experience replay buffer."""
-        self.buffer.append((state, action, reward, next_state, done))
+        if self._next_idx >= len(self.buffer):
+            self.buffer.append((state, action, reward, next_state, done))
+        else:
+            self.buffer[self._next_idx] = (state, action, reward, next_state, done)
+        self._next_idx = (self._next_idx + 1) % self._size
 
     def __len__(self):
         return len(self.buffer)
@@ -32,25 +39,60 @@ class UniformBuffer(object):
             rewards.append(reward)
             next_states.append(np.array(next_state, copy=False))
             dones.append(done)
-        states = torch.as_tensor(np.array(states).transpose(0, 3, 2, 1), device=self.device)
+        states = torch.as_tensor(
+            np.array(states).transpose(0, 3, 2, 1), device=self.device
+        )
         actions = torch.as_tensor(np.array(actions), device=self.device)
         rewards = torch.as_tensor(
-                np.array(rewards, dtype=np.float32), device=self.device
+            np.array(rewards, dtype=np.float32), device=self.device
         )
         next_states = torch.as_tensor(
-                np.array(next_states).transpose(0, 3, 2, 1), device=self.device
+            np.array(next_states).transpose(0, 3, 2, 1), device=self.device
         )
         dones = torch.as_tensor(np.array(dones, dtype=np.float32), device=self.device)
         return states, actions, rewards, next_states, dones
 
 
-class DatasetBuffer(torch.utils.data.IterableDataset):
-    def __init__(self, size, device="cpu"):
+class DatasetBuffer(torch.utils.data.Dataset):
+    def __init__(self, size, device):
         super(DatasetBuffer).__init__()
+        self.buffer = [(np.random.randint(255, size=(84, 84, 4), dtype=np.uint8), 0, 0, np.random.randint(255, size=(84, 84, 4), dtype=np.uint8), 0)]
+        print("Buffer initialized.")
+        self._size = size
+        self.device = device
+        self._next_idx = 0
+        self._len = 1
+
+    def __len__(self):
+        return self._len
+    
+    def __getitem__(self, idx):
+        st, act, rew, n_st, d =  self.buffer[idx]
+        state = torch.from_numpy(np.array(st).transpose(2, 1, 0))
+        action = torch.from_numpy(np.array(act))
+        reward = torch.from_numpy(np.array(rew, dtype=np.float32))
+        next_state = torch.from_numpy(np.array(n_st).transpose(2, 1, 0))
+        done = torch.from_numpy(np.array(d, dtype=np.float32))
+        return state, action, reward, next_state, done
+
+    def add(self, state, action, reward, next_state, done):
+        if self._next_idx >= len(self.buffer):
+            self.buffer.append((state, action, reward, next_state, done))
+        else:
+            self.buffer[self._next_idx] = (state, action, reward, next_state, done)
+        self._next_idx = (self._next_idx + 1) % self._size
+
+        if self._len < len(self.buffer):#self._size:
+            self._len += 1
+
+
+class IterDatasetBuffer(torch.utils.data.IterableDataset):
+    def __init__(self, size, device="cpu"):
+        super(IterDatasetBuffer).__init__()
         self.buffer = deque(maxlen=size)
         self.device = device
 
-    def add_to_buffer(self, state, action, reward, next_state, done):
+    def add(self, state, action, reward, next_state, done):
         """Adds data to experience replay buffer."""
         self.buffer.append((state, action, reward, next_state, done))
 

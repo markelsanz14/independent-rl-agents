@@ -1,4 +1,4 @@
-"""Implements the DQN algorithm, with the Neural Network and Replay Buffer."""
+"""Implements the DQN algorithm."""
 import os
 
 import torch
@@ -17,24 +17,30 @@ class DQN(object):
         num_actions,
         main_nn,
         target_nn,
-        replay_buffer,
         lr=1e-5,
         discount=0.99,
-        batch_size=32,
         device="cpu",
     ):
-        """Initializes the class."""
+        """Initializes the class.
+        Args:
+            env_name: str, id that identifies the environment in OpenAI gym.
+            num_actions: int, number of discrete actions for the environment.
+            main_nn: torch.nn.Module, a neural network from the ../networks/* directory.
+            target_nn: torch.nn.Module, a neural network with the same architecture as main_nn.
+            lr: float, a learning rate for the optimizer.
+            discount: float, the discount factor for the Bellman equation.
+            device: the result of running torch.device().
+        """
         self.num_actions = num_actions
         self.discount = discount
         self.main_nn = main_nn
         self.target_nn = target_nn
-        self.buffer = replay_buffer
         self.device = device
 
         self.optimizer = optim.Adam(self.main_nn.parameters(), lr=lr)
         self.loss_fn = nn.SmoothL1Loss()  # Huber loss.
 
-        self.save_path = "./saved_models/DQN-{}.pt".format(env_name)
+        self.save_path = "./saved_models/{}-DQN-{}.pt".format(env_name, type(main_nn).__name__)
         if os.path.isfile(self.save_path):
             self.main_nn = torch.load(self.save_path)
             print("Loaded model from {}:".format(self.save_path))
@@ -64,18 +70,16 @@ class DQN(object):
             return np.argmax(q)  # Greedy action for state
 
     def train_step(self, states, actions, rewards, next_states, dones, importances):
-        """Perform a training iteration on a batch of data sampled from the experience
-        replay buffer.
+        """Perform a training iteration on a batch of data.
         Returns:
             loss: float, the loss value of the current training step.
         """
         # Calculate targets.
-        # with torch.no_grad():
-        max_next_qs = self.target_nn(next_states).max(-1).values.detach()
+        max_next_qs = self.target_nn(next_states).max(-1).values
         target = rewards + (1.0 - dones) * self.discount * max_next_qs
-        masked_qs = self.main_nn(states).gather(1, actions.view(-1, 1))
-        loss = self.loss_fn(masked_qs.squeeze(), target.detach())  # sample_weight=importances
-        nn.utils.clip_grad_norm_(loss, max_norm=10)
+        masked_qs = self.main_nn(states).gather(1, actions.unsqueeze(dim=-1))
+        loss = self.loss_fn(masked_qs.squeeze(), target.detach())
+        #nn.utils.clip_grad_norm_(loss, max_norm=10)
         self.optimizer.zero_grad()
         loss.backward()
         self.optimizer.step()

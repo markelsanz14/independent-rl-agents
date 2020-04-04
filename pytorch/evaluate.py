@@ -41,7 +41,10 @@ def main():
             agent_class = DoubleDQN
 
     evaluate_env(
-        env_name=args.env, agent_class=agent_class, dueling=args.dueling, num_episodes=args.num_episodes
+        env_name=args.env,
+        agent_class=agent_class,
+        dueling=args.dueling,
+        num_episodes=args.num_episodes,
     )
 
 
@@ -105,9 +108,11 @@ def evaluate_env(
         state = env.reset()
         done, ep_rew = False, 0
         while not done:
-            state_in = torch.tensor(
-                np.expand_dims(state, axis=0), dtype=torch.float32
-            ).transpose(1, 3).to(device)
+            state_in = (
+                torch.tensor(np.expand_dims(state, axis=0), dtype=torch.float32)
+                .transpose(1, 3)
+                .to(device)
+            )
             # Sample action from policy and take that action in the env.
             action = agent.take_exploration_action(state_in, env, epsilon)
             next_state, reward, done, info = env.step(action)

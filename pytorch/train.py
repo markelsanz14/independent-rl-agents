@@ -11,9 +11,8 @@ from torch.utils.tensorboard import SummaryWriter
 
 from envs import ATARI_ENVS
 from atari_wrappers import make_atari, wrap_deepmind
-from replay_buffers.uniform import UniformBuffer
+from replay_buffers.uniform import UniformBuffer, DatasetBuffer
 
-# from replay_buffers.uniform import UniformBuffer, DatasetBuffer
 from networks.nature_cnn import NatureCNN
 from networks.dueling_cnn import DuelingCNN
 
@@ -74,7 +73,7 @@ def run_env(
     initial_exploration=1.0,
     final_exploration=0.01,
     exploration_steps=int(2e6),
-    learning_starts=50,#int(1e4),
+    learning_starts=50,  # int(1e4),
     train_freq=1,
     target_update_freq=int(1e4),
     save_ckpt_freq=int(1e6),
@@ -99,6 +98,9 @@ def run_env(
         num_actions = env.action_space.n
 
         replay_buffer = UniformBuffer(size=buffer_size, device=device)
+        #dataset = DatasetBuffer(size=buffer_size, device=device)
+        #dataloader = torch.utils.data.DataLoader(dataset, batch_size=batch_size, shuffle=True, num_workers=10, drop_last=True)
+        #iterator = iter(dataloader)
         # replay_buffer = DatasetBuffer(size=buffer_size, device=device)
         # buffer_loader =
         # DataLoader(replay_buffer, batch_size=batch_size, num_workers=0)
@@ -108,7 +110,7 @@ def run_env(
         else:
             main_network = NatureCNN(num_actions).to(device)
             target_network = NatureCNN(num_actions).to(device)
-        #main_network.apply(NatureCNN.init_weights)
+        # main_network.apply(NatureCNN.init_weights)
 
         target_network.load_state_dict(main_network.state_dict())
         target_network.eval()
@@ -118,8 +120,6 @@ def run_env(
             num_actions=num_actions,
             main_nn=main_network,
             target_nn=target_network,
-            replay_buffer=replay_buffer,
-            batch_size=batch_size,
             device=device,
         )
     else:
@@ -139,13 +139,13 @@ def run_env(
     print_env_info(env, env_name, agent, main_network)
 
     # Creaete TensorBoard Metrics.
-    log_dir = "logs/{}_{}_ClipRew{}".format(
-        agent_class.__name__, env_name, clip_rewards
+    log_dir = "logs/{}_{}_{}_ClipRew{}".format(
+        agent_class.__name__, type(main_network).__name__, env_name, clip_rewards
     )
     writer = SummaryWriter(log_dir)
-    #writer.add_graph(
+    # writer.add_graph(
     #    main_network, torch.randn(1, 4, 84, 84, dtype=torch.float32, device=device)
-    #)
+    # )
 
     imp = np.array([1.0 for _ in range(batch_size)])
     beta = 0.7
@@ -161,19 +161,16 @@ def run_env(
         done, ep_rew, clip_ep_rew = False, 0, 0
         # Start an episode.
         while not done:
-            state_in = torch.as_tensor(
-                    np.expand_dims(state, axis=0).transpose(0, 3, 2, 1),
-                    dtype=torch.float32,
-                    device=device
-            )
+            state_np = np.expand_dims(state, axis=0).transpose(0, 3, 2, 1)
+            state_in = torch.from_numpy(state_np).to(device, non_blocking=True)
             if normalize_obs:
-                state_in = torch.div(state_in, 255.) 
+                state_in = torch.div(state_in, 255.0)
             # Sample action from policy and take that action in the env.
             action = agent.take_exploration_action(state_in, env, epsilon)
             next_state, rew, done, info = env.step(action)
             if clip_rewards:
                 reward = np.sign(rew)
-            agent.buffer.add_to_buffer(state, action, reward, next_state, done)
+            replay_buffer.add(state, action, reward, next_state, done)
 
             cur_frame += 1
             clip_ep_rew += reward
@@ -183,28 +180,38 @@ def run_env(
             if cur_frame > learning_starts and cur_frame % train_freq == 0:
                 # Perform training on data sampled from the replay buffer.
                 if prioritized:
-                    st, act, rew, next_st, d, imp, indx = agent.buffer.sample(
-                        batch_size
-                    )
+                    try: 
+                        st, act, rew, next_st, d, imp, indx = iterator.next()#replay_buffer.sample(batch_size)
+                    except StopIteration:
+                        dataloader = torch.utils.data.DataLoader(dataset, batch_size=batch_size, shuffle=True, num_workers=10, drop_last=True)
+                        iterator = iter(dataloader)
                 else:
                     # if cur_frame % 1000 == 0:
                     #    replay_buffer.shuffle_data()
                     # st, act, rew, next_st, d, idx = next(iter(buffer_loader))
-                    st, act, rew, next_st, d = agent.buffer.sample(batch_size)
+                    try:
+                        st, act, rew, next_st, d = replay_buffer.sample(batch_size)
+                        #st, act, rew, next_st, d = iterator.next()#replay_buffer.sample(batch_size)
+                        #st = st.to(device, non_blocking=True)
+                        #act = act.to(device, non_blocking=True)
+                        #rew = rew.to(device, non_blocking=True)
+                        #next_st = next_st.to(device, non_blocking=True)
+                        #d = d.to(device, non_blocking=True)
+                    except StopIteration:
+                        iterator = iter(dataloader)
+                        continue
                     beta = 0.0
                 if normalize_obs:
-                    st = torch.div(st, 255.).to(device)
-                    next_st = torch.div(next_st, 255.).to(device)
-                loss_tuple = agent.train_step(
-                    st, act, rew, next_st, d, imp ** beta
-                )
+                    st = torch.div(st, 255.0).to(device)
+                    next_st = torch.div(next_st, 255.0).to(device)
+                loss_tuple = agent.train_step(st, act, rew, next_st, d, imp ** beta)
                 if prioritized:
                     # Update priorities
-                    #agent.buffer.update_priorities(indx, td_errors)
+                    # replay_buffer.update_priorities(indx, td_errors)
                     pass
             if cur_frame % 100 == 0:
                 end = time.time()
-                # print(end-start)
+                print(end-start)
                 start = time.time()
 
             # Update value of the exploration value epsilon.
