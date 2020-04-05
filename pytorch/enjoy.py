@@ -10,8 +10,8 @@ from atari_wrappers import make_atari, wrap_deepmind
 # from agents.ddpg import DDPG
 from agents.dqn import DQN
 from agents.double_dqn import DoubleDQN
-from agents.double_dueling_dqn import DoubleDuelingDQN
-from agents.dueling_dqn import DuelingDQN
+from networks.nature_cnn import NatureCNN
+from networks.dueling_cnn import DuelingCNN
 
 
 def main():
@@ -26,10 +26,10 @@ def main():
         "--env", type=str, choices=ATARI_ENVS, default="BreakoutNoFrameskip-v4"
     )
     parser.add_argument("--agent", type=str, choices=["DQN"], default="DQN")
-    parser.add_argument("--prioritized", type=bool, default=False)
-    parser.add_argument("--double_q", type=bool, default=False)
-    parser.add_argument("--dueling", type=bool, default=False)
-    parser.add_argument("--clip_rewards", type=bool, default=False)
+    parser.add_argument("--prioritized", type=int, default=0)
+    parser.add_argument("--double_q", type=int, default=0)
+    parser.add_argument("--dueling", type=int, default=0)
+    parser.add_argument("--clip_rewards", type=int, default=0)
     parser.add_argument("--num_episodes", type=int, default=10)
 
     args = parser.parse_args()
@@ -38,21 +38,20 @@ def main():
     if args.agent == "DQN":
         agent_class = DQN
         if args.double_q:
-            if args.dueling:
-                agent_class = DoubleDuelingDQN
-            else:
-                agent_class = DoubleDQN
-        elif args.dueling:
-            agent_class = DuelingDQN
+            agent_class = DoubleDQN
 
     enjoy_env(
-        env_name=args.env, agent_class=agent_class, num_episodes=args.num_episodes
+        env_name=args.env,
+        agent_class=agent_class,
+        dueling=args.dueling,
+        num_episodes=args.num_episodes,
     )
 
 
 def enjoy_env(
     env_name,
     agent_class,
+    dueling=False,
     epsilon=0.01,
     prioritized=False,
     clip_rewards=False,
@@ -65,19 +64,29 @@ def enjoy_env(
         prioritized: bool, whether to use prioritized experience replay.
         clip_rewards: bool, whether to clip the rewards to {-1, 0, 1} or not.
     """
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     if env_name in ATARI_ENVS:
         env = make_atari(env_name)
         env = wrap_deepmind(
-            env, frame_stack=True, scale=False, clip_rewards=clip_rewards
+            env, episode_life=False, frame_stack=True, scale=True, clip_rewards=False
         )
     else:
         env = gym.make(env_name)
 
     if isinstance(env.action_space, gym.spaces.Discrete):
-        num_state_feats = env.observation_space.shape
         num_actions = env.action_space.n
+        if dueling:
+            main_network = DuelingCNN(num_actions).to(device)
+            target_network = DuelingCNN(num_actions).to(device)
+        else:
+            main_network = NatureCNN(num_actions).to(device)
+            target_network = NatureCNN(num_actions).to(device)
+
         agent = agent_class(
-            env_name, num_state_feats, num_actions, prioritized=prioritized
+            env_name=env_name,
+            num_actions=num_actions,
+            main_nn=main_network,
+            target_nn=target_network,
         )
     else:
         num_state_feats = env.observation_space.shape

@@ -11,8 +11,12 @@ from atari_wrappers import make_atari, wrap_deepmind
 from replay_buffers.uniform import UniformBuffer, DatasetUniformBuffer
 from networks.nature_cnn import NatureCNN
 from networks.dueling_cnn import DuelingCNN
+from networks.soft_q_net import SoftQNet
+from networks.dense_value_net import ValueNet
+from networks.dense_sac_policy import PolicyNet
 from agents.dqn import DQN
 from agents.double_dqn import DoubleDQN
+from agents.sac import SAC
 
 
 def main():
@@ -23,10 +27,11 @@ def main():
         description="Process inputs",
     )
 
+    envs = ["Pendulum-v0"]
     parser.add_argument(
-        "--env", type=str, choices=ATARI_ENVS, default="BreakoutNoFrameskip-v4"
+        "--env", type=str, choices=ATARI_ENVS+envs, default="BreakoutNoFrameskip-v4"
     )
-    parser.add_argument("--agent", type=str, choices=["DQN"], default="DQN")
+    parser.add_argument("--agent", type=str, choices=["DQN", "SAC"], default="DQN")
     parser.add_argument("--prioritized", type=int, default=0)
     parser.add_argument("--double_q", type=int, default=0)
     parser.add_argument("--dueling", type=int, default=0)
@@ -42,6 +47,8 @@ def main():
         agent_class = DQN
         if args.double_q:
             agent_class = DoubleDQN
+    elif args.agent == "SAC":
+        agent_class = SAC
 
     run_env(
         env_name=args.env,
@@ -97,7 +104,7 @@ def run_env(
     if isinstance(env.action_space, gym.spaces.Discrete):
         num_state_feats = env.observation_space.shape
         num_actions = env.action_space.n
-
+        max_state_feats = 255.
         if use_dataset_buffer:
             replay_buffer = DatasetUniformBuffer(size=buffer_size)
             model_input = replay_buffer.build_iterator(batch_size)
@@ -116,32 +123,47 @@ def run_env(
             num_actions=num_actions,
             main_nn=main_network,
             target_nn=target_network,
-            replay_buffer=replay_buffer,
             batch_size=batch_size,
         )
+        print_env_info(env, env_name, agent, main_network)
+        log_dir = "logs/{agent_class.__name__}_{main_network.__name__}_"\
+                  "{env_name}_ClipRews{clip_rewards}"
     else:
-        num_state_feats = env.observation_space.shape
+        num_state_feats = env.observation_space.shape[0]
         num_action_feats = env.action_space.shape[0]
         min_action_values = env.action_space.low
         max_action_values = env.action_space.high
+        max_state_feats = env.observation_space.high
+        replay_buffer = UniformBuffer(size=buffer_size)
+        if agent_class.__name__ == "SAC":
+            main_v_net = ValueNet()
+            target_v_net = ValueNet()
+            q1_net = SoftQNet()
+            q2_net = SoftQNet()
+            policy_net = PolicyNet(num_actions=num_action_feats)
+
         agent = agent_class(
             env_name,
-            num_state_feats,
-            num_action_feats,
-            min_action_values,
-            max_action_values,
+            main_v_nn=main_v_net,
+            target_v_nn=target_v_net,
+            q1_nn=q1_net,
+            q2_nn=q2_net,
+            policy_nn=policy_net,
         )
-
-    print_env_info(env, env_name, agent, main_network)
+        print_env_info(env, env_name, agent, policy_net)
+        log_dir = f"logs/{agent_class.__name__}_{env_name}"
 
     # Create TensorBoard Metrics and save graph.
-    log_dir = "logs/{}_{}_{}_ClipRews{}".format(
-        agent_class.__name__, type(main_network).__name__, env_name, clip_rewards
-    )
     summary_writer = tf.summary.create_file_writer(log_dir)
-    profile = True
+    profile = False
     tf.summary.trace_on(graph=True, profiler=False)
-    agent.main_nn(np.random.randn(1, 84, 84, 4))
+    if agent.__name__ in ["DQN", "DoubleDQN"]:
+        agent.main_nn(np.random.randn(1, 84, 84, 4))
+    else:
+        main_v_net(np.random.randn(1, num_state_feats).astype(np.float32))
+        q1_net(np.random.randn(1, num_state_feats).astype(np.float32), np.random.randn(1, num_action_feats).astype(np.float32))
+        q2_net(np.random.randn(1, num_state_feats).astype(np.float32), np.random.randn(1, num_action_feats).astype(np.float32))
+        policy_net(np.random.randn(1, num_state_feats).astype(np.float32))
     with summary_writer.as_default():
         tf.summary.trace_export(name="trace", step=0)
     if profile:
@@ -162,12 +184,12 @@ def run_env(
         # Start an episode.
         while not done:
             # Sample action from policy and take that action in the env.
-            state_in = np.array(state) / 255.0 if normalize_obs else state
+            state_in = np.array(state) / max_state_feats if normalize_obs else state
             action = agent.take_exploration_action(state_in, env, epsilon)
             next_state, reward, done, info = env.step(action)
             clipped_reward = np.sign(reward)
             rew = clipped_reward if clip_rewards else reward
-            agent.buffer.add_to_buffer(state, action, rew, next_state, done)
+            replay_buffer.add_to_buffer(state, action, rew, next_state, done)
             cur_frame += 1
             ep_rew += reward
             clipped_ep_rew += clipped_reward
@@ -176,24 +198,27 @@ def run_env(
             if cur_frame > learning_starts and cur_frame % train_freq == 0:
                 # Perform training on data sampled from the replay buffer.
                 if prioritized:
-                    st, act, rew, next_st, d, imp, indx = agent.buffer.sample(
+                    st, act, rew, next_st, d, imp, indx = replay_buffer.sample(
                         batch_size
                     )
                 else:
-                    if type(replay_buffer).__name__ == "UniformBuffer":
-                        st, act, rew, next_st, d = agent.buffer.sample(batch_size)
+                    if replay_buffer.__name__ == "UniformBuffer":
+                        st, act, rew, next_st, d = replay_buffer.sample(batch_size)
                     else:
                         st, act, rew, next_st, d = next(model_input)
                     beta = 0.0
                     if normalize_obs:
-                        st = tf.cast(st, tf.float32) / 255.0
-                        next_st = tf.cast(next_st, tf.float32) / 255.0
-                loss_tuple, td_errors = agent.train_step(
-                    st, act, rew, next_st, d, imp ** beta
-                )
+                        st = tf.cast(st, tf.float32) / max_state_feats
+                        next_st = tf.cast(next_st, tf.float32) / max_state_feats
+                if agent.__name__ == "SAC":
+                    loss_q1, loss_q2, loss_pi, loss_v = agent.train_step(st, act, rew, next_st, d, imp**beta)
+                else:
+                    loss_tuple, td_errors = agent.train_step(
+                        st, act, rew, next_st, d, imp ** beta
+                    )
                 if prioritized:
                     # Update priorities
-                    agent.buffer.update_priorities(indx, td_errors)
+                    replay_buffer.update_priorities(indx, td_errors)
 
             # Update value of the exploration value epsilon.
             epsilon = decay_epsilon(
@@ -204,7 +229,7 @@ def run_env(
                 exploration_steps,
             )
 
-            if cur_frame % target_update_freq == 0 and cur_frame > learning_starts:
+            if agent.__name__ == "DQN" and cur_frame % target_update_freq == 0 and cur_frame > learning_starts:
                 # Copy weights from main to target network.
                 agent.target_nn.set_weights(agent.main_nn.get_weights())
 
@@ -212,12 +237,11 @@ def run_env(
                 agent.save_checkpoint()
 
             # Add TensorBoard Summaries.
-            if cur_frame % 100000 == 0:
+            if cur_frame % 100000 == 0 and agent.__name__ == "DQN":
                 with summary_writer.as_default():
                     tf.summary.scalar("epsilon", epsilon, step=cur_frame)
 
             if cur_frame == 100 and profile:
-                print("lkgjslkgj;slfkgjs;lfkgjs;lkfgjs;lkgj")
                 with summary_writer.as_default():
                     tf.summary.trace_export(
                         name="trace", step=cur_frame, profiler_outdir=log_dir

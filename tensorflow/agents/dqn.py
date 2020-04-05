@@ -12,7 +12,6 @@ class DQN(object):
         num_actions,
         main_nn,
         target_nn,
-        replay_buffer=None,
         lr=1e-5,
         discount=0.99,
         batch_size=32,
@@ -22,7 +21,6 @@ class DQN(object):
         self.discount = discount
         self.main_nn = main_nn
         self.target_nn = target_nn
-        self.buffer = replay_buffer
 
         self.optimizer = tf.keras.optimizers.Adam(lr, clipnorm=10)
         self.loss = tf.keras.losses.Huber()

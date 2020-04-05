@@ -12,15 +12,12 @@ class DoubleDQN(object):
         num_actions,
         main_nn,
         target_nn,
-        replay_buffer=None,
         lr=1e-5,
         discount=0.99,
         batch_size=32,
     ):
         self.num_actions = num_actions
         self.discount = discount
-        self.buffer = replay_buffer
-
         self.main_nn = main_nn
         self.target_nn = target_nn
 

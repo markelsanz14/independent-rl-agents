@@ -6,6 +6,7 @@ import numpy as np
 
 class UniformBuffer(object):
     """Experience replay buffer that samples uniformly."""
+    __name__ = "UniformBuffer"
 
     def __init__(self, size):
         """Initializes the buffer."""
