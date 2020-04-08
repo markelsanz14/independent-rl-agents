@@ -6,8 +6,18 @@ layers = tf.keras.layers
 class SoftQNet(tf.keras.Model):
     def __init__(self):
         super(SoftQNet, self).__init__()
-        self.dense1 = tf.keras.layers.Dense(200, activation='relu')
-        self.dense2 = tf.keras.layers.Dense(200, activation='relu')
+        self.dense1 = tf.keras.layers.Dense(
+            200,
+            activation="relu",
+            kernel_initializer=tf.keras.initializers.VarianceScaling(2.0),
+            bias_initializer=tf.keras.initializers.Zeros(),
+        )
+        self.dense2 = tf.keras.layers.Dense(
+            200,
+            activation="relu",
+            kernel_initializer=tf.keras.initializers.VarianceScaling(2.0),
+            bias_initializer=tf.keras.initializers.Zeros(),
+        )
         self.out = tf.keras.layers.Dense(1, activation=None)
 
     @tf.function

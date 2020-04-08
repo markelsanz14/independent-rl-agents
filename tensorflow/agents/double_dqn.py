@@ -5,6 +5,7 @@ import tensorflow as tf
 
 class DoubleDQN(object):
     """Implement the Double DQN algorithm and some helper methods."""
+    __name__ = "DoubleDQN"
 
     def __init__(
         self,

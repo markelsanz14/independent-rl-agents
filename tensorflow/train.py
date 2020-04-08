@@ -12,7 +12,6 @@ from replay_buffers.uniform import UniformBuffer, DatasetUniformBuffer
 from networks.nature_cnn import NatureCNN
 from networks.dueling_cnn import DuelingCNN
 from networks.soft_q_net import SoftQNet
-from networks.dense_value_net import ValueNet
 from networks.dense_sac_policy import PolicyNet
 from agents.dqn import DQN
 from agents.double_dqn import DoubleDQN
@@ -27,9 +26,9 @@ def main():
         description="Process inputs",
     )
 
-    envs = ["Pendulum-v0"]
+    envs = ["Pendulum-v0", "LunarLanderContinuous-v2", "BipedalWalker-v2"]
     parser.add_argument(
-        "--env", type=str, choices=ATARI_ENVS+envs, default="BreakoutNoFrameskip-v4"
+        "--env", type=str, choices=ATARI_ENVS + envs, default="BreakoutNoFrameskip-v4"
     )
     parser.add_argument("--agent", type=str, choices=["DQN", "SAC"], default="DQN")
     parser.add_argument("--prioritized", type=int, default=0)
@@ -77,7 +76,7 @@ def run_env(
     initial_exploration=1.0,
     final_exploration=0.01,
     exploration_steps=int(2e6),
-    learning_starts=40,#int(1e4),
+    learning_starts=40,  # int(1e4),
     train_freq=1,
     target_update_freq=int(1e5),
     save_ckpt_freq=int(1e6),
@@ -104,7 +103,7 @@ def run_env(
     if isinstance(env.action_space, gym.spaces.Discrete):
         num_state_feats = env.observation_space.shape
         num_actions = env.action_space.n
-        max_state_feats = 255.
+        max_state_feats = 255.0
         if use_dataset_buffer:
             replay_buffer = DatasetUniformBuffer(size=buffer_size)
             model_input = replay_buffer.build_iterator(batch_size)
@@ -126,8 +125,10 @@ def run_env(
             batch_size=batch_size,
         )
         print_env_info(env, env_name, agent, main_network)
-        log_dir = "logs/{agent_class.__name__}_{main_network.__name__}_"\
-                  "{env_name}_ClipRews{clip_rewards}"
+        log_dir = (
+            "logs/{agent_class.__name__}_{main_network.__name__}_"
+            "{env_name}_ClipRews{clip_rewards}"
+        )
     else:
         num_state_feats = env.observation_space.shape[0]
         num_action_feats = env.action_space.shape[0]
@@ -136,19 +137,21 @@ def run_env(
         max_state_feats = env.observation_space.high
         replay_buffer = UniformBuffer(size=buffer_size)
         if agent_class.__name__ == "SAC":
-            main_v_net = ValueNet()
-            target_v_net = ValueNet()
-            q1_net = SoftQNet()
-            q2_net = SoftQNet()
+            main_q1_net = SoftQNet()
+            target_q1_net = SoftQNet()
+            main_q2_net = SoftQNet()
+            target_q2_net = SoftQNet()
             policy_net = PolicyNet(num_actions=num_action_feats)
 
         agent = agent_class(
-            env_name,
-            main_v_nn=main_v_net,
-            target_v_nn=target_v_net,
-            q1_nn=q1_net,
-            q2_nn=q2_net,
+            env_name=env_name,
+            main_q1_nn=main_q1_net,
+            main_q2_nn=main_q2_net,
+            target_q1_nn=target_q1_net,
+            target_q2_nn=target_q2_net,
             policy_nn=policy_net,
+            target_entropy=None,
+            num_action_feats=num_action_feats,
         )
         print_env_info(env, env_name, agent, policy_net)
         log_dir = f"logs/{agent_class.__name__}_{env_name}"
@@ -156,18 +159,27 @@ def run_env(
     # Create TensorBoard Metrics and save graph.
     summary_writer = tf.summary.create_file_writer(log_dir)
     profile = False
-    tf.summary.trace_on(graph=True, profiler=False)
-    if agent.__name__ in ["DQN", "DoubleDQN"]:
-        agent.main_nn(np.random.randn(1, 84, 84, 4))
-    else:
-        main_v_net(np.random.randn(1, num_state_feats).astype(np.float32))
-        q1_net(np.random.randn(1, num_state_feats).astype(np.float32), np.random.randn(1, num_action_feats).astype(np.float32))
-        q2_net(np.random.randn(1, num_state_feats).astype(np.float32), np.random.randn(1, num_action_feats).astype(np.float32))
-        policy_net(np.random.randn(1, num_state_feats).astype(np.float32))
     with summary_writer.as_default():
-        tf.summary.trace_export(name="trace", step=0)
-    if profile:
-        tf.summary.trace_on(graph=False, profiler=True)
+        if agent.__name__ in ["DQN", "DoubleDQN"]:
+            tf.summary.trace_on(graph=True, profiler=False)
+            agent.main_nn(np.random.randn(1, 84, 84, 4))
+            tf.summary.trace_export(name="dqn_graph", step=0)
+        else:
+            tf.summary.trace_on(graph=True, profiler=False)
+            main_q1_net(
+                np.random.randn(1, num_state_feats).astype(np.float32),
+                np.random.randn(1, num_action_feats).astype(np.float32),
+            )
+            tf.summary.trace_export(name="q1_graph", step=0)
+            # main_q2_net(
+            #    np.random.randn(1, num_state_feats).astype(np.float32),
+            #    np.random.randn(1, num_action_feats).astype(np.float32),
+            # )
+            tf.summary.trace_on(graph=True, profiler=False)
+            policy_net(np.random.randn(1, num_state_feats).astype(np.float32))
+            tf.summary.trace_export(name="policy_graph", step=0)
+        if profile:
+            tf.summary.trace_on(graph=False, profiler=True)
 
     imp = np.array([1.0 for _ in range(batch_size)])
     beta = 0.7
@@ -187,6 +199,8 @@ def run_env(
             state_in = np.array(state) / max_state_feats if normalize_obs else state
             action = agent.take_exploration_action(state_in, env, epsilon)
             next_state, reward, done, info = env.step(action)
+            # if tf.math.is_nan(reward).numpy():
+            #    quit()
             clipped_reward = np.sign(reward)
             rew = clipped_reward if clip_rewards else reward
             replay_buffer.add_to_buffer(state, action, rew, next_state, done)
@@ -211,11 +225,18 @@ def run_env(
                         st = tf.cast(st, tf.float32) / max_state_feats
                         next_st = tf.cast(next_st, tf.float32) / max_state_feats
                 if agent.__name__ == "SAC":
-                    loss_q1, loss_q2, loss_pi, loss_v = agent.train_step(st, act, rew, next_st, d, imp**beta)
+                    losses_dict = agent.train_step(
+                        st, act, rew, next_st, d, imp ** beta
+                    )
                 else:
                     loss_tuple, td_errors = agent.train_step(
                         st, act, rew, next_st, d, imp ** beta
                     )
+                if cur_frame % 10 == 0 and agent.__name__ == "SAC":
+                    with summary_writer.as_default():
+                        for name, loss in losses_dict.items():
+                            tf.summary.scalar(name, loss, step=cur_frame)
+
                 if prioritized:
                     # Update priorities
                     replay_buffer.update_priorities(indx, td_errors)
@@ -229,7 +250,11 @@ def run_env(
                 exploration_steps,
             )
 
-            if agent.__name__ == "DQN" and cur_frame % target_update_freq == 0 and cur_frame > learning_starts:
+            if (
+                agent.__name__ == "DQN"
+                and cur_frame % target_update_freq == 0
+                and cur_frame > learning_starts
+            ):
                 # Copy weights from main to target network.
                 agent.target_nn.set_weights(agent.main_nn.get_weights())
 
@@ -248,7 +273,7 @@ def run_env(
                     )
             if cur_frame % 100 == 0:
                 end = time.time()
-                #print(end-start)
+                # print(end-start)
                 start = time.time()
 
         with summary_writer.as_default():
@@ -275,7 +300,7 @@ def decay_epsilon(epsilon, step, initial_exp, final_exp, exp_steps):
 
 def print_result(env_name, epsilon, episode, step, returns, clipped_returns):
     print("----------------------------------")
-    print("| Env: {:>23s}   |".format(env_name[:-14]))
+    print("| Env: {:>23s}   |".format(env_name))
     print("| Exploration time %: {:>7d}%   |".format(int(epsilon * 100)))
     print("| Episode: {:>19d}   |".format(episode))
     print("| Steps: {:>21d}   |".format(step))

@@ -5,6 +5,7 @@ import numpy as np
 
 class DQN(object):
     """Implement the DQN algorithm and some helper methods."""
+    __name__ = "DQN"
 
     def __init__(
         self,

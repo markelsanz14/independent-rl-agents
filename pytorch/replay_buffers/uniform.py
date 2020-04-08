@@ -10,7 +10,6 @@ class UniformBuffer(object):
 
     def __init__(self, size, device="cpu"):
         """Initializes the buffer."""
-        #self.buffer = deque(maxlen=size)
         self._size = size
         self.buffer = []
         self.device = device
