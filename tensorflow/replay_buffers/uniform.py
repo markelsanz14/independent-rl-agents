@@ -5,7 +5,6 @@ import numpy as np
 
 class UniformBuffer(object):
     """Experience replay buffer that samples uniformly."""
-
     __name__ = "UniformBuffer"
 
     def __init__(self, size):
@@ -67,6 +66,7 @@ class DatasetUniformBuffer(object):
     def __len__(self):
         return len(self.buffer)
 
+    @profile
     def sample_gen(self):
         """Samples num_sample elements from the buffer."""
         while True:
@@ -81,20 +81,23 @@ class DatasetUniformBuffer(object):
             dones = np.array(done, dtype=np.float32)
             yield states, actions, rewards, next_states, dones
     
-    def normalize_obs(self, state, action, reward, next_state, done):
-        state_ = tf.cast(state, tf.float32) / self.normalization_val
-        next_state_ = tf.cast(next_state, tf.float32) / self.normalization_val
-        return state_, action, reward, next_state_, done
+    #@profile
+    #def normalize_obs(self, state, action, reward, next_state, done):
+    #    state_ = tf.cast(state, tf.float32) / self.normalization_val
+    #    next_state_ = tf.cast(next_state, tf.float32) / self.normalization_val
+    #    return state_, action, reward, next_state_, done
 
+    @profile
     def build_iterator(self, batch_size):
         dataset = tf.data.Dataset.from_generator(
                 generator=self.sample_gen,
                 output_types=(tf.uint8, tf.int32, tf.float32, tf.uint8, tf.float32),
                 output_shapes=((84, 84, 4), (), (), (84, 84, 4), ()),
         )
-        dataset = dataset.map(self.normalize_obs, num_parallel_calls=tf.data.experimental.AUTOTUNE)
+        #dataset = dataset.map(self.normalize_obs, num_parallel_calls=tf.data.experimental.AUTOTUNE)
         dataset = dataset.batch(batch_size)
-        dataset = dataset.shuffle(buffer_size=100, reshuffle_each_iteration=True)
-        dataset = dataset.repeat(-1)
+        #dataset = dataset.shuffle(buffer_size=100, reshuffle_each_iteration=True)
+        #dataset = dataset.repeat(-1)
         dataset = dataset.prefetch(tf.data.experimental.AUTOTUNE)
+        dataset = dataset.apply(tf.data.experimental.prefetch_to_device('/gpu:0'))
         return iter(dataset)

@@ -6,6 +6,7 @@ layers = tf.keras.layers
 
 class Dense(tf.keras.Model):
     """Dense neural network for simple games."""
+    __name__ = "Dense"
 
     def __init__(self, num_actions):
         """Initializes the neural network."""

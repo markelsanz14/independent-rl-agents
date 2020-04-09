@@ -61,6 +61,7 @@ def main():
     )
 
 
+@profile
 def run_env(
     env_name,
     agent_class,
@@ -89,6 +90,7 @@ def run_env(
         clip_rewards: bool, whether to clip the rewards to {-1, 0, 1} or not.
     """
     gpus = tf.config.experimental.list_physical_devices("GPU")
+    print(gpus)
     limit_gpu_memory = True
     if gpus:
         for gpu in gpus:
@@ -127,8 +129,8 @@ def run_env(
         )
         print_env_info(env, env_name, agent, main_network)
         log_dir = (
-            "logs/{agent_class.__name__}_{main_network.__name__}_"
-            "{env_name}_ClipRews{clip_rewards}"
+            f"logs/{agent_class.__name__}_{main_network.__name__}_"
+            f"{env_name}_ClipRews{clip_rewards}"
         )
     else:
         num_state_feats = env.observation_space.shape[0]
@@ -159,7 +161,7 @@ def run_env(
 
     # Create TensorBoard Metrics and save graph.
     summary_writer = tf.summary.create_file_writer(log_dir)
-    profile = False
+    profile = True
     with summary_writer.as_default():
         if agent.__name__ in ["DQN", "DoubleDQN"]:
             tf.summary.trace_on(graph=True, profiler=False)
@@ -219,12 +221,13 @@ def run_env(
                 else:
                     if replay_buffer.__name__ == "UniformBuffer":
                         st, act, rew, next_st, d = replay_buffer.sample(batch_size)
-                        if normalize_obs:
-                            st = tf.cast(st, tf.float32) / max_state_feats
-                            next_st = tf.cast(next_st, tf.float32) / max_state_feats
                     else:
                         st, act, rew, next_st, d = next(model_input)
                     beta = 0.0
+                    if normalize_obs:
+                        with tf.device("/gpu:0"):
+                            st = tf.cast(st, tf.float32) / max_state_feats
+                            next_st = tf.cast(next_st, tf.float32) / max_state_feats
                 if agent.__name__ == "SAC":
                     losses_dict = agent.train_step(
                         st, act, rew, next_st, d, imp ** beta

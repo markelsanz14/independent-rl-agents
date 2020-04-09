@@ -5,6 +5,7 @@ layers = tf.keras.layers
 
 class NatureCNN(tf.keras.Model):
     """Convolutional neural network for the Atari games."""
+    __name__ = "NatureCNN"
 
     def __init__(self, num_actions):
         """Initializes the neural network."""

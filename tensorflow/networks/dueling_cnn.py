@@ -5,6 +5,7 @@ layers = tf.keras.layers
 
 class DuelingCNN(tf.keras.Model):
     """Convolutional neural network for the Atari games."""
+    __name__ = "DuelingCNN"
 
     def __init__(self, num_actions):
         """Initializes the neural network."""
