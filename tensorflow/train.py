@@ -104,8 +104,9 @@ def run_env(
         num_state_feats = env.observation_space.shape
         num_actions = env.action_space.n
         max_state_feats = 255.0
+        print(use_dataset_buffer)
         if use_dataset_buffer:
-            replay_buffer = DatasetUniformBuffer(size=buffer_size)
+            replay_buffer = DatasetUniformBuffer(size=buffer_size, normalization_val=max_state_feats)
             model_input = replay_buffer.build_iterator(batch_size)
         else:
             replay_buffer = UniformBuffer(size=buffer_size)
@@ -203,7 +204,7 @@ def run_env(
             #    quit()
             clipped_reward = np.sign(reward)
             rew = clipped_reward if clip_rewards else reward
-            replay_buffer.add_to_buffer(state, action, rew, next_state, done)
+            replay_buffer.add(state, action, rew, next_state, done)
             cur_frame += 1
             ep_rew += reward
             clipped_ep_rew += clipped_reward
@@ -218,12 +219,12 @@ def run_env(
                 else:
                     if replay_buffer.__name__ == "UniformBuffer":
                         st, act, rew, next_st, d = replay_buffer.sample(batch_size)
+                        if normalize_obs:
+                            st = tf.cast(st, tf.float32) / max_state_feats
+                            next_st = tf.cast(next_st, tf.float32) / max_state_feats
                     else:
                         st, act, rew, next_st, d = next(model_input)
                     beta = 0.0
-                    if normalize_obs:
-                        st = tf.cast(st, tf.float32) / max_state_feats
-                        next_st = tf.cast(next_st, tf.float32) / max_state_feats
                 if agent.__name__ == "SAC":
                     losses_dict = agent.train_step(
                         st, act, rew, next_st, d, imp ** beta
@@ -273,7 +274,7 @@ def run_env(
                     )
             if cur_frame % 100 == 0:
                 end = time.time()
-                # print(end-start)
+                print(end-start)
                 start = time.time()
 
         with summary_writer.as_default():

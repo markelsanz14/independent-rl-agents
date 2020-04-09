@@ -1,5 +1,4 @@
 import random
-from collections import deque
 import numpy as np
 
 
@@ -17,17 +16,23 @@ class PrioritizedReplayBuffer(object):
             alpha: float, the strength of the prioritization
                 (0.0 - no prioritization, 1.0 - full prioritization).
         """
-        self.buffer = deque(maxlen=size)
-        self.priorities = deque(maxlen=size)
+        self.buffer = []
+        self.priorities = []
+        self._size = size
         self._alpha = alpha
 
     def __len__(self):
         return len(self.buffer)
 
-    def add_to_buffer(self, state, action, reward, next_state, done):
+    def add(self, state, action, reward, next_state, done):
         """Adds data to experience replay buffer with priority."""
-        self.buffer.append((state, action, reward, next_state, done))
-        self.priorities.append(max(self.priorities, default=1.0))
+        if self._next_idx >= len(self.buffer):
+            self.buffer.append((state, action, reward, next_state, done))
+            self.priorities.append(max(self.priorities, default=1.0))
+        else:
+            self.buffer[self._next_idx] = (state, action, reward, next_state, done)
+            self.priorities[self._next_idx] = max(self.priorities, default=1.0)
+        self._next_idx = (self._next_idx + 1) % self._size
 
     def calculate_probabilities(self):
         """Calculates probability of being sampled for each element in the buffer.
