@@ -3,10 +3,11 @@ We compare the performance of the algorithms as reported in the dueling dqn pape
 
 This table shows the original performance vs ours implementation. Our results were collected with a **replay 
 buffer size of 1M**, and **setting the terminal_on_life_loss to False only during evaluation** (so that the agent 
-can keep playing until it loses all its lives), and it was trained for at least 40M steps, sometimes more. See
-the code for more details.
+can keep playing until it loses all its lives), and it was trained for at least 40M steps, sometimes more.
+The evaluation numbers below show the average of 200 runs with different random seeds.See the code for more
+details.
 
-| Game                | DQN         |               | Double DQN |               | Double Dueling DQN |       |
+| Game                | DQN         |               | Double DQN |               | Dueling DQN  |             |
 |---------------------|-------------|---------------|------------|---------------|--------------|-------------|
 |                     | Paper       | Ours (TF)     | Paper      | Ours (TF)     | Paper        | Ours (TF)   |
 | Alien               | 1,620       | **3,240**     | **3,747**  | 2,618         | **4,461**    | 2,281       |
