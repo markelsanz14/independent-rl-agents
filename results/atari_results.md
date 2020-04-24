@@ -1,6 +1,8 @@
 ### Algorithm implementation performance on Atari games:
 We compare the performance of the algorithms as reported in the dueling dqn paper ([wang et al. 2015](https://arxiv.org/pdf/1511.06581.pdf)) with ours for the different Atari Games.
 
+Training logs available [here](https://tensorboard.dev/experiment/XzlbZcmoQkCeVPppg7BR7g).
+
 This table shows the original performance vs ours implementation. Our results were collected with a **replay 
 buffer size of 1M**, and **setting the terminal_on_life_loss to False only during evaluation** (so that the agent 
 can keep playing until it loses all its lives), and it was trained for at least 40M steps, sometimes more.
