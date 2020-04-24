@@ -26,11 +26,12 @@ def main():
         "--env", type=str, choices=ATARI_ENVS, default="BreakoutNoFrameskip-v4"
     )
     parser.add_argument("--agent", type=str, choices=["DQN"], default="DQN")
-    parser.add_argument("--prioritized", type=bool, default=False)
-    parser.add_argument("--double_q", type=bool, default=False)
-    parser.add_argument("--dueling", type=bool, default=False)
+    parser.add_argument("--prioritized", type=int, default=0)
+    parser.add_argument("--double_q", type=int, default=0)
+    parser.add_argument("--dueling", type=int, default=0)
     parser.add_argument("--num_episodes", type=int, default=20)
-    parser.add_argument("--clip_rewards", type=bool, default=False)
+    parser.add_argument("--clip_rewards", type=int, default=1)
+    parser.add_argument("--epsilon", type=float, default=0.01)
 
     args = parser.parse_args()
     print("Arguments received:")
@@ -43,6 +44,7 @@ def main():
     evaluate_env(
         env_name=args.env,
         agent_class=agent_class,
+        epsilon=args.epsilon,
         dueling=args.dueling,
         num_episodes=args.num_episodes,
     )
