@@ -1,4 +1,5 @@
 import argparse
+import time
 
 import tensorflow as tf
 import gym
@@ -9,8 +10,8 @@ from atari_wrappers import make_atari, wrap_deepmind
 # from agents.ddpg import DDPG
 from agents.dqn import DQN
 from agents.double_dqn import DoubleDQN
-from agents.double_dueling_dqn import DoubleDuelingDQN
-from agents.dueling_dqn import DuelingDQN
+from networks.nature_cnn import NatureCNN
+from networks.dueling_cnn import DuelingCNN
 
 
 def main():
@@ -25,11 +26,12 @@ def main():
         "--env", type=str, choices=ATARI_ENVS, default="BreakoutNoFrameskip-v4"
     )
     parser.add_argument("--agent", type=str, choices=["DQN"], default="DQN")
-    parser.add_argument("--prioritized", type=bool, default=False)
-    parser.add_argument("--double_q", type=bool, default=False)
-    parser.add_argument("--dueling", type=bool, default=False)
-    parser.add_argument("--clip_rewards", type=bool, default=True)
+    parser.add_argument("--prioritized", type=int, default=0)
+    parser.add_argument("--double_q", type=int, default=0)
+    parser.add_argument("--dueling", type=int, default=0)
+    parser.add_argument("--clip_rewards", type=int, default=0)
     parser.add_argument("--num_episodes", type=int, default=10)
+    parser.add_argument("--epsilon", type=float, default=0.01)
 
     args = parser.parse_args()
     print("Arguments received:")
@@ -37,15 +39,15 @@ def main():
     if args.agent == "DQN":
         agent_class = DQN
         if args.double_q:
-            if args.dueling:
-                agent_class = DoubleDuelingDQN
-            else:
-                agent_class = DoubleDQN
-        elif args.dueling:
-            agent_class = DuelingDQN
+            agent_class = DoubleDQN
 
     enjoy_env(
-        env_name=args.env, agent_class=agent_class, num_episodes=args.num_episodes
+        env_name=args.env,
+        agent_class=agent_class,
+        epsilon=args.epsilon,
+        dueling=args.dueling,
+        prioritized=args.prioritized,
+        num_episodes=args.num_episodes,
     )
 
 
@@ -53,9 +55,10 @@ def enjoy_env(
     env_name,
     agent_class,
     epsilon=0.01,
+    dueling=False,
     prioritized=False,
-    clip_rewards=False,
     num_episodes=20,
+    clip_rewards=False,
 ):
     """Runs an agent in a single environment to evaluate its performance.
     Args:
@@ -72,7 +75,7 @@ def enjoy_env(
     if env_name in ATARI_ENVS:
         env = make_atari(env_name)
         env = wrap_deepmind(
-            env, frame_stack=True, scale=True, clip_rewards=clip_rewards
+            env, episode_life=False, frame_stack=True, scale=True, clip_rewards=False
         )
     else:
         env = gym.make(env_name)
@@ -80,8 +83,18 @@ def enjoy_env(
     if isinstance(env.action_space, gym.spaces.Discrete):
         num_state_feats = env.observation_space.shape
         num_actions = env.action_space.n
+
+        if dueling:
+            main_network = DuelingCNN(num_actions)
+            target_network = DuelingCNN(num_actions)
+        else:
+            main_network = NatureCNN(num_actions)
+            target_network = NatureCNN(num_actions)
         agent = agent_class(
-            env_name, num_state_feats, num_actions, prioritized=prioritized
+            env_name=env_name,
+            num_actions=num_actions,
+            main_nn=main_network,
+            target_nn=target_network,
         )
     else:
         num_state_feats = env.observation_space.shape
@@ -106,6 +119,7 @@ def enjoy_env(
             next_state, reward, done, info = env.step(action)
             state = next_state
             ep_rew += reward
+            time.sleep(0.03)
 
         print("Epiosde {} return: {}".format(episode, ep_rew))
 
