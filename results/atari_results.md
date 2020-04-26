@@ -9,7 +9,7 @@ can keep playing until it loses all its lives), and it was trained for at least 
 The evaluation numbers below show the average of 200 runs with different random seeds. See the code for more
 details.
 
-|Game             |DQN       |              |               | DoubleDQN  |               | | DuelingDQN  |               | |
+|Game             |DQN       |              |               | Double DQN |               | | Dueling DQN |               | |
 |-----------------|----------|--------------|---------------|------------|---------------|-|-------------|---------------|-|
 |                 |Paper     |Our TF     |Our PyTorch | Paper      | Our TF     | Our PyTorch | Paper       | Our TF     |Our PyTorch|
 |Alien            |1,620     |3,240         |**5,250**      | **3,747**  | 2,618         | | **4,461**   | 2,281         | |
