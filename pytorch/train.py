@@ -164,7 +164,7 @@ def run_env(
             state_np = np.expand_dims(state, axis=0).transpose(0, 3, 2, 1)
             state_in = torch.from_numpy(state_np).to(device, non_blocking=True)
             if normalize_obs:
-                state_in = torch.div(state_in, 255.0)
+                state_in = torch.div(state_in.type(torch.cuda.FloatTensor), 255.0)
             # Sample action from policy and take that action in the env.
             action = agent.take_exploration_action(state_in, env, epsilon)
             next_state, rew, done, info = env.step(action)
@@ -202,8 +202,8 @@ def run_env(
                         continue
                     beta = 0.0
                 if normalize_obs:
-                    st = torch.div(st, 255.0).to(device)
-                    next_st = torch.div(next_st, 255.0).to(device)
+                    st = torch.div(st.type(torch.cuda.FloatTensor), 255.0).to(device)
+                    next_st = torch.div(next_st.type(torch.cuda.FloatTensor), 255.0).to(device)
                 loss_tuple = agent.train_step(st, act, rew, next_st, d, imp ** beta)
                 if prioritized:
                     # Update priorities
@@ -211,7 +211,7 @@ def run_env(
                     pass
             if cur_frame % 100 == 0:
                 end = time.time()
-                print(end-start)
+                # print(end-start)
                 start = time.time()
 
             # Update value of the exploration value epsilon.
