@@ -61,7 +61,6 @@ def main():
     )
 
 
-@profile
 def run_env(
     env_name,
     agent_class,
@@ -161,7 +160,7 @@ def run_env(
 
     # Create TensorBoard Metrics and save graph.
     summary_writer = tf.summary.create_file_writer(log_dir)
-    profile = True
+    profile = False
     with summary_writer.as_default():
         if agent.__name__ in ["DQN", "DoubleDQN"]:
             tf.summary.trace_on(graph=True, profiler=False)
